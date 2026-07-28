@@ -1,0 +1,424 @@
+@import 'tailwindcss';
+
+/* Токены из прототипа — единственный источник правды по визуалу */
+:root {
+  --bg: #0d0d0f;
+  --surface: #161619;
+  --surface-2: #1e1e22;
+  --surface-3: #26262b;
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --accent: #f6c915;
+  --accent-hi: #ffd84d;
+  --accent-ink: #0d0d0f;
+  --text: #f4f4f5;
+  --text-dim: #9c9ca6;
+  --text-faint: #6a6a73;
+  --good: #4ade80;
+  --shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  --r-lg: 22px;
+  --r-md: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Archivo', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Видимый фокус — §5.4. В прототипе его нет, там всё кликается мышью */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ---------- примитивы, общие для нескольких экранов ---------- */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 700;
+}
+.eyebrow::before {
+  content: '';
+  width: 26px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.inp {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  transition: 0.18s;
+}
+.inp::placeholder {
+  color: var(--text-faint);
+}
+.inp:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-3);
+}
+textarea.inp {
+  resize: vertical;
+  min-height: 74px;
+  line-height: 1.5;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  font-size: 15px;
+  padding: 12px 22px;
+  border-radius: 11px;
+  transition: 0.18s;
+}
+.primary:hover {
+  background: var(--accent-hi);
+  transform: translateY(-1px);
+}
+.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn-quiet {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.btn-quiet:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  transition: 0.16s;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.chip.active {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.chip .cc {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #c99a00);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+.mini-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  flex: none;
+}
+
+.privacy {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  line-height: 1.45;
+  margin: 12px 0 18px;
+}
+.privacy svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.empty-people {
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* Внутренности модалок. Живут глобально, потому что содержимое приходит
+   в BaseModal через slot — scoped-стили самого BaseModal его не достают. */
+.modal h3 {
+  margin: 0 0 6px;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+.modal .msub {
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.mclose {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 20px;
+  color: var(--text-faint);
+  line-height: 1;
+}
+.mclose:hover {
+  color: var(--text);
+}
+.mhead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.mscroll {
+  overflow-y: auto;
+  margin: 16px -4px 0;
+  padding: 0 4px;
+  flex: 1;
+}
+.acct {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 13px;
+  margin-bottom: 16px;
+}
+.acct .em {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct .em b {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+.mlabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 7px;
+  display: block;
+}
+.dl {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 9px;
+}
+.cmt {
+  display: flex;
+  gap: 11px;
+  padding: 13px 0;
+  border-top: 1px solid var(--border);
+}
+.cmt .cbody {
+  flex: 1;
+  min-width: 0;
+}
+.cmt .cname {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cmt .cname span {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.cmt .ctext {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.cmt-form {
+  margin-top: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Кнопки реакций — на карточке и в модалке идеи одни и те же */
+.react {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dim);
+  transition: 0.15s;
+}
+.react:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.react.on {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+.react.join.on {
+  background: var(--good);
+  color: #0b2a17;
+}
+.react.spent {
+  opacity: 0.42;
+}
+.react svg {
+  width: 15px;
+  height: 15px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  align-self: flex-start;
+}
+.tag .cc {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-right: auto;
+}
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin: 34px 0 18px;
+  flex-wrap: wrap;
+}
+.sec-head h2 {
+  font-family: 'Archivo Expanded', sans-serif;
+  font-weight: 800;
+  font-size: clamp(24px, 3vw, 34px);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.sec-head .count {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+}
+.sec-head p {
+  color: var(--text-dim);
+  font-size: 14px;
+  margin: 0;
+  width: 100%;
+  line-height: 1.55;
+}
+.sec-head p b {
+  color: var(--text);
+}
+
+.foot-note {
+  color: var(--text-faint);
+  font-size: 12px;
+  text-align: center;
+  padding: 0 20px 40px;
+}

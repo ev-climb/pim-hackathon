@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIM Summer Hackathon 2026 · Сбор идей</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Archivo+Expanded:wght@700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0D0D0F;--surface:#161619;--surface-2:#1E1E22;--surface-3:#26262b;
+    --border:rgba(255,255,255,.09);--border-strong:rgba(255,255,255,.16);
+    --accent:#F6C915;--accent-hi:#FFD84D;--accent-ink:#0D0D0F;
+    --text:#F4F4F5;--text-dim:#9C9CA6;--text-faint:#6A6A73;--good:#4ADE80;
+    --shadow:0 24px 60px -20px rgba(0,0,0,.7);
+    --r-lg:22px;--r-md:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Archivo',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;min-height:100vh}
+  ::selection{background:var(--accent);color:var(--accent-ink)}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit}
+
+  .protobar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:9px 16px;
+    background:rgba(13,13,15,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+  .protobar .plabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+  .seg{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .seg button{padding:6px 15px;border-radius:999px;font-size:13px;font-weight:600;color:var(--text-dim);transition:.18s;white-space:nowrap}
+  .seg button.active{background:var(--accent);color:var(--accent-ink)}
+  .seg-alt{font-size:12px;font-weight:600;color:var(--text-faint);border:1px solid var(--border);border-radius:999px;padding:6px 13px;transition:.16s}
+  .seg-alt:hover{color:var(--accent);border-color:rgba(246,201,21,.4)}
+  .protobar .hint{margin-left:auto;font-size:12px;color:var(--text-faint);max-width:330px}
+  @media(max-width:640px){.protobar .hint{display:none}}
+
+  .screen{display:none;animation:fade .4s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+
+  .circuit{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  .circuit svg{position:absolute;right:-4%;top:-30%;width:70%;height:170%;opacity:.5}
+  .circuit .trace{stroke:var(--accent);fill:none;stroke-width:1;opacity:.28}
+  .circuit .node{fill:var(--accent)}
+  @media(prefers-reduced-motion:no-preference){
+    .circuit .node{animation:pulse 3.4s ease-in-out infinite}
+    .circuit .node:nth-child(3n){animation-delay:1.1s}
+    .circuit .node:nth-child(3n+1){animation-delay:2.2s}
+  }
+  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+  /* ---------- login ---------- */
+  .login{position:relative;min-height:calc(100vh - 47px);display:flex;align-items:center;overflow:hidden}
+  .login .glow{position:absolute;right:-10%;top:-20%;width:60%;height:120%;background:radial-gradient(circle at 60% 40%,rgba(246,201,21,.16),transparent 60%);pointer-events:none}
+  .login .inner{position:relative;z-index:2;display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;width:100%;padding:56px 0}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .eyebrow::before{content:"";width:26px;height:3px;background:var(--accent);border-radius:2px}
+  .hero-title{font-family:'Archivo Expanded',sans-serif;font-weight:900;line-height:.94;letter-spacing:-.01em;margin:20px 0 0;font-size:clamp(42px,6vw,84px)}
+  .hero-title .y{color:var(--accent)}
+  .hero-sub{color:var(--text-dim);font-size:17px;line-height:1.55;max-width:440px;margin-top:22px}
+  .hero-meta{display:flex;gap:22px;margin-top:30px;flex-wrap:wrap}
+  .hero-meta div{border-left:2px solid var(--accent);padding-left:12px}
+  .hero-meta .k{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-faint)}
+  .hero-meta .v{font-weight:700;font-size:15px;margin-top:3px}
+
+  .login-cards{display:flex;flex-direction:column;gap:16px}
+  .lcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:26px;transition:.22s}
+  .lcard.entry:hover{border-color:var(--border-strong)}
+  .lcard h3{margin:0;font-size:19px;font-weight:800;display:flex;align-items:center;gap:10px}
+  .lcard p{margin:8px 0 18px;font-size:13.5px;line-height:1.5;opacity:.85}
+  .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;flex:none;background:var(--surface-2)}
+  .g-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:11px;background:#fff;color:#1f1f23;font-weight:700;font-size:15px;padding:13px;border-radius:12px;transition:.18s}
+  .g-btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}
+  .domains{text-align:center;font-size:12.5px;color:var(--text-faint);margin-top:11px}
+  .domains b{color:var(--text-dim);font-weight:600}
+  .login-error{display:none;align-items:flex-start;gap:9px;margin-top:14px;padding:12px 14px;border-radius:12px;
+    background:rgba(246,201,21,.09);border:1px solid rgba(246,201,21,.32);font-size:13px;line-height:1.45;color:var(--text-dim)}
+  .login-error.show{display:flex}
+  .login-error svg{width:16px;height:16px;flex:none;margin-top:1px;color:var(--accent)}
+  .login-error b{color:var(--accent);font-weight:700}
+  .steps{display:flex;flex-direction:column;gap:14px;margin:22px 0;padding:22px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  .step{display:flex;gap:13px;align-items:flex-start}
+  .step .sn{width:26px;height:26px;flex:none;border-radius:7px;background:var(--accent);color:var(--accent-ink);
+    display:grid;place-items:center;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:13px}
+  .step b{display:block;font-size:14px;font-weight:700}
+  .step small{display:block;color:var(--text-faint);font-size:12.5px;line-height:1.45;margin-top:2px}
+
+  /* ---------- modals ---------- */
+  .modal-bg{position:fixed;inset:0;z-index:80;background:rgba(8,8,10,.74);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--r-lg);padding:28px;max-width:430px;width:100%;box-shadow:var(--shadow);animation:pop .25s ease}
+  .modal.wide{max-width:580px;max-height:88vh;display:flex;flex-direction:column;padding:26px}
+  @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+  .modal h3{margin:0 0 6px;font-size:21px;font-weight:800;line-height:1.25}
+  .modal .msub{color:var(--text-dim);font-size:14px;line-height:1.5;margin:0 0 20px}
+  .acct{display:flex;align-items:center;gap:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:16px}
+  .acct .em{font-size:13.5px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis}
+  .acct .em b{display:block;color:var(--text);font-size:14px}
+  .mlabel{font-size:12.5px;font-weight:600;color:var(--text-dim);margin-bottom:7px;display:block}
+  .privacy{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--text-faint);line-height:1.45;margin:12px 0 18px}
+  .privacy svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--accent)}
+  .mclose{position:absolute;top:14px;right:16px;font-size:20px;color:var(--text-faint);line-height:1}
+  .mhead{display:flex;align-items:flex-start;gap:12px;margin-bottom:4px}
+  .mscroll{overflow-y:auto;margin:16px -4px 0;padding:0 4px;flex:1}
+  .cmt{display:flex;gap:11px;padding:13px 0;border-top:1px solid var(--border)}
+  .cmt .cbody{flex:1;min-width:0}
+  .cmt .cname{font-size:13px;font-weight:700;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .cmt .cname span{font-size:11.5px;color:var(--text-faint);font-weight:500}
+  .cmt .ctext{font-size:14px;line-height:1.5;color:var(--text-dim);margin-top:4px}
+  .cmt-form{margin-top:14px;padding-top:16px;border-top:1px solid var(--border)}
+
+  /* ---------- shell ---------- */
+  .topbar{position:relative;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#141416,#0f0f11)}
+  .topbar .row{display:flex;align-items:center;gap:18px;padding:16px 0}
+  .brand{display:flex;align-items:center;gap:11px;font-family:'Archivo Expanded',sans-serif;font-weight:900;font-size:19px;letter-spacing:-.01em}
+  .brand .dot{width:11px;height:11px;background:var(--accent);border-radius:3px}
+  .brand span{color:var(--accent)}
+  .countdown{margin-left:6px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:7px 14px;font-size:13px;color:var(--text-dim)}
+  .countdown b{color:var(--accent)}
+  .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .tabs button{padding:7px 15px;border-radius:999px;font-size:13px;font-weight:600;color:var(--text-dim);transition:.16s}
+  .tabs button:hover{color:var(--text)}
+  .tabs button.active{background:var(--accent);color:var(--accent-ink)}
+  .topbar-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#c99a00);color:var(--accent-ink);display:grid;place-items:center;font-weight:800;font-size:14px}
+  .who{font-size:13px;text-align:right}.who b{display:block}.who small{color:var(--text-faint)}
+  .who button{font-size:11.5px;color:var(--text-faint);text-decoration:underline;padding:0}
+  .who button:hover{color:var(--accent)}
+  @media(max-width:760px){.who{display:none}.countdown{padding:7px 11px}.countdown .cd-label{display:none}}
+
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin:34px 0 18px;flex-wrap:wrap}
+  .sec-head h2{font-family:'Archivo Expanded',sans-serif;font-weight:800;font-size:clamp(24px,3vw,34px);margin:0;letter-spacing:-.01em}
+  .sec-head .count{font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:15px;font-weight:600}
+  .sec-head p{color:var(--text-dim);font-size:14px;margin:0;width:100%;line-height:1.55}
+  .sec-head p b{color:var(--text)}
+
+  .composer{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px;margin-top:26px}
+  .composer .ctop{display:flex;align-items:center;gap:11px;margin-bottom:16px}
+  .composer .ctop .ic{background:var(--accent);color:var(--accent-ink)}
+  .composer .ctop h3{margin:0;font-size:17px;font-weight:800}
+  .composer .ctop small{color:var(--text-faint);font-size:12.5px}
+  .c-grid{display:grid;gap:12px}
+  .inp{width:100%;padding:12px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;color:var(--text);font-size:15px;font-weight:500;transition:.18s}
+  .inp::placeholder{color:var(--text-faint)}
+  .inp:focus{outline:none;border-color:var(--accent);background:var(--surface-3)}
+  textarea.inp{resize:vertical;min-height:74px;line-height:1.5}
+  .cat-pick{display:flex;flex-wrap:wrap;gap:8px}
+  .c-actions{display:flex;align-items:center;gap:14px;margin-top:4px;flex-wrap:wrap}
+  .primary{background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:15px;padding:12px 22px;border-radius:11px;transition:.18s}
+  .primary:hover{background:var(--accent-hi);transform:translateY(-1px)}
+  .c-actions .note{font-size:12.5px;color:var(--text-faint)}
+
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;background:var(--surface);border:1px solid var(--border);color:var(--text-dim);transition:.16s;white-space:nowrap}
+  .chip:hover{border-color:var(--border-strong);color:var(--text)}
+  .chip.active{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+  .chip .cc{width:8px;height:8px;border-radius:50%}
+  .filters{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 8px}
+  .filters .spacer{flex:1;min-width:8px}
+  .sortsel{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:3px}
+  .sortsel button{padding:7px 14px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--text-dim)}
+  .sortsel button.active{background:var(--surface-3);color:var(--text)}
+
+  /* бюджет голосов */
+  .budget{display:inline-flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 15px 6px 12px;font-size:12.5px;color:var(--text-dim);font-weight:600}
+  .budget .pips{display:flex;gap:4px}
+  .budget .pip{width:9px;height:9px;border-radius:50%;background:var(--accent);transition:.2s}
+  .budget .pip.used{background:var(--surface-3)}
+  .budget.out{border-color:rgba(246,201,21,.45);color:var(--accent)}
+
+  .cloud{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:20px 0 60px}
+  .idea{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:20px;display:flex;flex-direction:column;gap:12px;transition:.2s}
+  .idea:hover{border-color:var(--border-strong);transform:translateY(-3px);box-shadow:var(--shadow)}
+  .idea .tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;background:var(--surface-2);color:var(--text-dim);align-self:flex-start}
+  .idea .tag .cc{width:7px;height:7px;border-radius:50%}
+  .idea h4{margin:0;font-size:17px;font-weight:800;line-height:1.25;cursor:pointer}
+  .idea h4:hover{color:var(--accent)}
+  .idea .desc{color:var(--text-dim);font-size:14px;line-height:1.55;margin:0;flex:1}
+  .cbtn{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--text-faint);padding:0;align-self:flex-start;transition:.15s}
+  .cbtn:hover{color:var(--accent)}
+  .cbtn.has{color:var(--accent)}
+  .cbtn svg{width:14px;height:14px}
+  .idea .foot{display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .idea .author{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-faint);margin-right:auto}
+  .mini-av{width:24px;height:24px;border-radius:50%;background:var(--surface-3);display:grid;place-items:center;font-size:11px;font-weight:700;color:var(--text-dim);flex:none}
+  .react{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);font-size:13px;font-weight:700;color:var(--text-dim);transition:.15s}
+  .react:hover{border-color:var(--border-strong);color:var(--text)}
+  .react.on{background:var(--accent);border-color:transparent;color:var(--accent-ink)}
+  .react.join.on{background:var(--good);color:#0b2a17}
+  .react.spent{opacity:.42}
+  .react svg{width:15px;height:15px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:26px 0 8px}
+  @media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:18px;position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;right:-16px;top:-16px;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle,rgba(246,201,21,.12),transparent 70%)}
+  .kpi .kv{font-family:'Archivo Expanded',sans-serif;font-weight:900;font-size:34px;line-height:1;color:var(--accent)}
+  .kpi .kl{font-size:12px;color:var(--text-dim);margin-top:8px}
+  .kpi.plain .kv{color:var(--text);font-size:21px;font-family:'Archivo',sans-serif;line-height:1.2}
+
+  .admin-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:22px 0 14px}
+  .search{flex:1;min-width:200px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:0 14px}
+  .search input{background:none;border:none;outline:none;color:var(--text);font-size:14px;padding:12px 0;width:100%}
+  .search svg{width:16px;height:16px;color:var(--text-faint);flex:none}
+  .selbox{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:11px;padding:12px 14px;font-size:13.5px;font-weight:600}
+
+  .rank-list{display:flex;flex-direction:column;gap:10px;margin:8px 0 60px}
+  .rrow{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);transition:.18s}
+  .rrow:hover{border-color:var(--border-strong)}
+  .rmain{display:flex;align-items:center;gap:14px;padding:15px 18px;cursor:pointer}
+  .rank{font-family:'Archivo Expanded',sans-serif;font-weight:900;font-size:22px;width:40px;text-align:center;flex:none;color:var(--text-faint)}
+  .rrow.top .rank{color:var(--accent)}
+  .rinfo{flex:1;min-width:0}
+  .rinfo .rt{font-size:16px;font-weight:800;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .rinfo .rmeta{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-faint);margin-top:5px;flex-wrap:wrap}
+  .rinfo .rmeta .mail{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-dim)}
+  .anon-badge{background:rgba(246,201,21,.14);color:var(--accent);border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:700}
+  .stat-pill{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;padding:6px 11px;border-radius:9px;background:var(--surface-2);flex:none}
+  .stat-pill svg{width:14px;height:14px}
+  .stat-pill.like{color:var(--accent)}
+  .stat-pill.join{color:var(--good)}
+  .stat-pill.cmt{color:var(--text-dim)}
+  .status-sel{border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim)}
+  .chev{width:18px;height:18px;color:var(--text-faint);transition:.2s;flex:none}
+  .rrow.open .chev{transform:rotate(180deg)}
+  .rdetail{max-height:0;overflow:hidden;transition:max-height .35s ease}
+  .rrow.open .rdetail{max-height:1200px}
+  .rdetail-in{padding:0 18px 18px 74px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:680px){.rdetail-in{grid-template-columns:1fr;padding-left:18px}.rmain{flex-wrap:wrap}.rank{width:auto}}
+  .rdetail .dl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:9px}
+  .people{display:flex;flex-wrap:wrap;gap:7px}
+  .person{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:4px 12px 4px 4px;font-size:12.5px}
+  .person .mini-av{width:22px;height:22px;font-size:10px}
+  .person .pm{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--text-faint);display:block}
+  .rdesc{grid-column:1/-1;color:var(--text-dim);font-size:14px;line-height:1.55;padding-top:14px;border-top:1px solid var(--border)}
+  .rcmts{grid-column:1/-1;padding-top:14px;border-top:1px solid var(--border)}
+  .empty-people{color:var(--text-faint);font-size:13px}
+  .rrow.hid{opacity:.45}
+  .rrow.hid:hover{opacity:.75}
+  .badge{border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:700;letter-spacing:.03em}
+  .badge.hid{background:rgba(255,255,255,.08);color:var(--text-dim)}
+  .badge.blocked{background:rgba(248,113,113,.14);color:#F87171}
+  .mod-row{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border)}
+  .mod{font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);transition:.15s}
+  .mod:hover{border-color:var(--border-strong);color:var(--text)}
+  .mod.danger:hover{border-color:rgba(248,113,113,.5);color:#F87171}
+  .mod-note{font-size:12px;color:var(--text-faint);margin-left:auto}
+  .btn-quiet{font-size:15px;font-weight:700;padding:12px 20px;border-radius:11px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim)}
+  .btn-quiet:hover{border-color:var(--border-strong);color:var(--text)}
+  .blocked-banner{display:flex;align-items:flex-start;gap:11px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.28);
+    border-radius:var(--r-md);padding:16px 18px;margin-top:26px;font-size:14px;line-height:1.5;color:var(--text-dim)}
+  .blocked-banner svg{width:18px;height:18px;flex:none;margin-top:1px;color:#F87171}
+  .blocked-banner b{color:var(--text)}
+  .foot-note{color:var(--text-faint);font-size:12px;text-align:center;padding:0 20px 40px}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px;padding:12px 20px;border-radius:12px;box-shadow:var(--shadow);transition:.3s;z-index:99;pointer-events:none;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media(max-width:900px){.login .inner{grid-template-columns:1fr;gap:34px}.circuit svg{opacity:.28}}
+</style>
+</head>
+<body>
+
+<div class="protobar">
+  <span class="plabel">Прототип</span>
+  <div class="seg" id="modeSeg">
+    <button data-mode="login" class="active">Экран входа</button>
+    <button data-mode="participant">Сотрудник</button>
+    <button data-mode="admin">Админ</button>
+  </div>
+  <button class="seg-alt" onclick="toggleLoginError()">Ошибка домена</button>
+  <button class="seg-alt" onclick="toggleBlockedMe()">Я заблокирован</button>
+  <span class="hint">Кликните по названию идеи, чтобы открыть её и предложить дополнение.</span>
+</div>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="s-login" class="screen active">
+  <div class="login">
+    <div class="glow"></div>
+    <div class="circuit">
+      <svg viewBox="0 0 600 700" preserveAspectRatio="xMidYMid slice">
+        <path class="trace" d="M40 120 H220 V60 H360"/>
+        <path class="trace" d="M0 220 H140 V300 H320 V220 H520"/>
+        <path class="trace" d="M80 400 H260 V480 H440"/>
+        <path class="trace" d="M300 40 V160 H460 V320"/>
+        <path class="trace" d="M180 560 H380 V640 H560"/>
+        <path class="trace" d="M460 380 H600"/>
+        <circle class="node" cx="220" cy="60" r="4"/><circle class="node" cx="360" cy="60" r="4"/>
+        <circle class="node" cx="320" cy="220" r="4"/><circle class="node" cx="460" cy="160" r="4"/>
+        <circle class="node" cx="260" cy="480" r="4"/><circle class="node" cx="380" cy="640" r="4"/>
+        <circle class="node" cx="460" cy="380" r="4"/><circle class="node" cx="140" cy="300" r="4"/>
+      </svg>
+    </div>
+    <div class="wrap">
+      <div class="inner">
+        <div>
+          <span class="eyebrow">Сбор идей · опрос сотрудников</span>
+          <h1 class="hero-title">PIM <span class="y">SUMMER</span><br>HACKATHON<br><span class="y">2026</span></h1>
+          <p class="hero-sub">Мы ещё выбираем формат и темы. Накидайте идеи в общее облако и поддержите те, что зашли — на них соберём команды и составим программу.</p>
+          <div class="hero-meta">
+            <div><div class="k">Когда</div><div class="v">2-я половина августа</div></div>
+            <div><div class="k">Формат</div><div class="v">2 дня онлайн</div></div>
+          </div>
+        </div>
+        <div class="login-cards">
+          <div class="lcard entry">
+            <span class="eyebrow" style="font-size:11px">Вход</span>
+            <h3 style="margin-top:14px">Рабочий Google-аккаунт</h3>
+            <p>Один клик, без паролей. Предложить идею или поддержать чужую можно без обязательства участвовать в хакатоне.</p>
+            <button class="g-btn" onclick="openApp()">
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              Войти через Google
+            </button>
+            <div class="domains">Только <b>@pimpay.ru</b> и <b>@pimsolutions.ru</b></div>
+
+            <div class="login-error" id="loginError">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+              <span>Вход только с рабочей почты <b>@pimpay.ru</b> или <b>@pimsolutions.ru</b>. Попробуйте другой аккаунт Google.</span>
+            </div>
+
+            <div class="steps">
+              <div class="step"><span class="sn">1</span><div><b>Предложите идею</b><small>Название и пара предложений — этого достаточно</small></div></div>
+              <div class="step"><span class="sn">2</span><div><b>Раздайте 5 голосов</b><small>И отметьте, над чем готовы поработать</small></div></div>
+              <div class="step"><span class="sn">3</span><div><b>Соберём команды</b><small>По самым популярным идеям составим программу</small></div></div>
+            </div>
+
+            <div class="privacy" style="margin:0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Коллеги увидят имя из вашего Google-профиля — его можно изменить в любой момент. Организаторы видят имя и рабочую почту.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== NAME MODAL ===================== -->
+<div class="modal-bg" id="nameModal">
+  <div class="modal">
+    <h3>Имя для коллег</h3>
+    <p class="msub">Подставлено из вашего Google-профиля. Это имя коллеги видят рядом с идеями, голосами и дополнениями.</p>
+    <div class="acct">
+      <div class="avatar" style="width:32px;height:32px;font-size:13px">Е</div>
+      <div class="em"><b>Ваш аккаунт</b>e.sokolov@pimsolutions.ru</div>
+    </div>
+    <label class="mlabel">Как вас показывать</label>
+    <input class="inp" id="displayName" value="Евгений Соколов" maxlength="40" placeholder="Например, Женя из платформы">
+    <div class="privacy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Коллеги видят только это имя. Организаторы видят имя и рабочую почту — чтобы позвать вас в команду.</span>
+    </div>
+    <button class="primary" style="width:100%" onclick="saveName()">Сохранить</button>
+  </div>
+</div>
+
+<!-- ===================== IDEA MODAL ===================== -->
+<div class="modal-bg" id="ideaModal" onclick="if(event.target===this)closeIdea()">
+  <div class="modal wide" style="position:relative">
+    <button class="mclose" onclick="closeIdea()">✕</button>
+    <div id="im-body"></div>
+  </div>
+</div>
+
+<!-- ===================== PARTICIPANT ===================== -->
+<section id="s-participant" class="screen">
+  <div class="topbar">
+    <div class="wrap"><div class="row">
+      <div class="brand"><span class="dot"></span>PIM <span>&nbsp;Hackathon</span></div>
+      <div class="countdown"><span class="cd-label">Хакатон:</span> <b>август</b></div>
+      <nav class="tabs" id="pTabs" style="display:none">
+        <button class="active">Облако идей</button>
+        <button onclick="setMode('admin')">Рейтинг</button>
+      </nav>
+      <div class="topbar-right">
+        <div class="who"><b id="whoName">Евгений Соколов</b><button onclick="openNameModal(true)">Изменить имя</button></div>
+        <div class="avatar" id="whoAv">Е</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="wrap">
+    <div class="blocked-banner" id="blockedBanner" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>
+      <span><b>Публикация с вашего аккаунта приостановлена организаторами.</b> Читать идеи и обсуждения можно по-прежнему. Если это ошибка — напишите организаторам хакатона.</span>
+    </div>
+    <div class="composer" id="composer">
+      <div class="ctop">
+        <span class="ic">✦</span>
+        <div><h3>Предложить идею</h3><small>Коротко и по делу — детали обсудим уже в командах</small></div>
+      </div>
+      <div class="c-grid">
+        <input class="inp" id="np-title" placeholder="Название идеи — например «Бот-дежурный по инцидентам»" maxlength="80">
+        <textarea class="inp" id="np-desc" placeholder="В двух-трёх предложениях: какую проблему решаем и зачем" maxlength="280"></textarea>
+        <div>
+          <div style="font-size:12px;color:var(--text-faint);margin-bottom:9px">Категория</div>
+          <div class="cat-pick" id="np-cats"></div>
+          <input class="inp" id="np-custom" style="margin-top:10px;display:none" maxlength="30" placeholder="Своя тема одним-двумя словами (необязательно)">
+        </div>
+        <div class="c-actions">
+          <button class="primary" onclick="submitIdea()">Отправить в облако</button>
+          <span class="note">Аноним <input type="checkbox" id="np-anon" style="vertical-align:middle"> — коллеги не увидят имя, организаторы увидят</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-head">
+      <h2>Облако идей</h2>
+      <span class="count" id="p-count">— идей</span>
+      <p>Поддержите понравившиеся идеи, поставив 👍, и жмите «В команду», если интересно поработать над этой идеей — так соберутся команды.<br>
+      <b>У каждого 5 голосов</b> — потратьте их на то, что действительно хотите увидеть на хакатоне. Голос всегда можно снять и переставить. Отметок «В команду» и дополнений — сколько угодно.</p>
+    </div>
+
+    <div class="filters" id="p-filters"></div>
+    <div class="filters">
+      <div id="budget-host"></div>
+      <div class="spacer"></div>
+      <div class="sortsel" id="p-sort">
+        <button data-sort="new" class="active">Новые</button>
+        <button data-sort="popular">Популярные</button>
+      </div>
+    </div>
+
+    <div class="cloud" id="cloud"></div>
+  </div>
+</section>
+
+<!-- ===================== ADMIN ===================== -->
+<section id="s-admin" class="screen">
+  <div class="topbar">
+    <div class="wrap"><div class="row">
+      <div class="brand"><span class="dot"></span>PIM <span>&nbsp;Hackathon</span></div>
+      <nav class="tabs">
+        <button onclick="setMode('participant')">Облако идей</button>
+        <button class="active">Рейтинг</button>
+      </nav>
+      <div class="topbar-right">
+        <div class="who"><b id="whoNameA">Евгений Соколов</b><small>организатор</small></div>
+        <div class="avatar" id="whoAvA">Е</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="wrap">
+    <div class="kpis">
+      <div class="kpi"><div class="kv" id="k-ideas">0</div><div class="kl">идей предложено</div></div>
+      <div class="kpi"><div class="kv" id="k-people">0</div><div class="kl">сотрудников поучаствовало</div></div>
+      <div class="kpi"><div class="kv" id="k-votes">0</div><div class="kl">голосов отдано</div></div>
+      <div class="kpi plain"><div class="kv" id="k-top">—</div><div class="kl">самая популярная категория</div></div>
+    </div>
+
+    <div class="sec-head" style="margin-bottom:6px">
+      <h2>Рейтинг идей</h2>
+      <p>Самые популярные — сверху. Разверните строку, чтобы увидеть автора с почтой, кто голосовал, кто готов в команду и все дополнения.</p>
+    </div>
+
+    <div class="admin-controls">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <input id="a-search" placeholder="Поиск по названию, автору или почте…" oninput="renderAdmin()">
+      </div>
+      <select class="selbox" id="a-cat" onchange="renderAdmin()"></select>
+      <select class="selbox" id="a-sort" onchange="renderAdmin()">
+        <option value="likes">По голосам</option>
+        <option value="joins">По желающим в команду</option>
+        <option value="cmts">По дополнениям</option>
+        <option value="new">По дате</option>
+      </select>
+    </div>
+
+    <div class="rank-list" id="rank-list"></div>
+    <div class="foot-note">Прототип · данные демонстрационные</div>
+  </div>
+</section>
+
+<div class="modal-bg" id="confirmModal" onclick="if(event.target===this)closeConfirm()">
+  <div class="modal">
+    <h3 id="cf-title">Заблокировать автора?</h3>
+    <p class="msub" id="cf-text"></p>
+    <div style="display:flex;gap:10px">
+      <button class="primary" id="cf-ok">Заблокировать</button>
+      <button class="btn-quiet" onclick="closeConfirm()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- люди ---------- */
+const PEOPLE={
+  'Марина Ковалёва':'m.kovaleva@pimsolutions.ru','Дмитрий Волков':'d.volkov@pimsolutions.ru',
+  'Настя Лебедева':'a.lebedeva@pimsolutions.ru','Игорь Тарасов':'i.tarasov@pimsolutions.ru',
+  'Оля Морозова':'o.morozova@pimsolutions.ru','Сергей Панов':'s.panov@pimsolutions.ru',
+  'Павел Ильин':'p.ilin@pimsolutions.ru','Тимур Ахметов':'t.akhmetov@pimsolutions.ru',
+  'Лена Соболева':'e.soboleva@pimsolutions.ru','Аня Гусева':'a.guseva@pimsolutions.ru'
+};
+const MY_EMAIL='e.sokolov@pimsolutions.ru';
+const LIKE_BUDGET=5;
+let ME='Евгений Соколов';
+PEOPLE[ME]=MY_EMAIL;
+const mailOf=n=>PEOPLE[n]||'—';
+
+const CATS=[
+  {id:'ai',label:'AI-агенты',color:'#F6C915'},
+  {id:'tools',label:'Внутр. инструменты',color:'#7DD3FC'},
+  {id:'auto',label:'Автоматизация',color:'#A78BFA'},
+  {id:'integr',label:'Интеграции',color:'#F472B6'},
+  {id:'game',label:'Игровые проекты',color:'#4ADE80'},
+  {id:'exp',label:'Эксперименты',color:'#FB923C'},
+  {id:'other',label:'Другое',color:'#9C9CA6'}
+];
+const catById=id=>CATS.find(c=>c.id===id)||CATS[0];
+
+let ideas=[
+  {id:1,title:'Бот-дежурный по инцидентам',desc:'AI-агент читает алерты, группирует похожие и предлагает первичный разбор в дежурный чат — меньше ручной рутины ночью.',cat:'ai',author:'Марина Ковалёва',anon:false,likes:['Игорь Тарасов','Настя Лебедева','Дмитрий Волков','Оля Морозова','Павел Ильин','Тимур Ахметов','Лена Соболева'],joins:['Игорь Тарасов','Дмитрий Волков','Тимур Ахметов'],comments:[{author:'Игорь Тарасов',text:'Давайте сразу заложим обучение на нашей истории инцидентов, иначе будет пересказывать общие места.',when:'вчера'},{author:'Дмитрий Волков',text:'Можно на второй день прикрутить эскалацию: если за 15 минут никто не ответил — звонок дежурному.',when:'вчера'}],status:'review',ts:5,hidden:false},
+  {id:2,title:'Внутренний поиск по всем доко',desc:'Единое окно поиска по Notion, Confluence и Git — с ответами через RAG, а не просто ссылками.',cat:'tools',author:'Дмитрий Волков',anon:false,likes:['Марина Ковалёва','Настя Лебедева','Оля Морозова','Павел Ильин','Сергей Панов','Аня Гусева'],joins:['Марина Ковалёва','Сергей Панов'],comments:[{author:'Аня Гусева',text:'Главное — права доступа. Иначе поиск покажет то, что человеку видеть не положено.',when:'2 дня назад'}],status:'selected',ts:4,hidden:false},
+  {id:3,title:'Автогенерация релиз-ноутов',desc:'Собираем изменения из мёрджей и тикетов, LLM пишет человеческие release notes на двух языках.',cat:'auto',author:'Аня Гусева',anon:true,likes:['Игорь Тарасов','Оля Морозова','Тимур Ахметов','Лена Соболева'],joins:['Оля Морозова'],comments:[],status:'review',ts:3,hidden:false},
+  {id:4,title:'Дашборд «здоровья» команд',desc:'Сводим метрики CI, ревью и деплоев в один экран — где узкие места и где всё горит.',cat:'integr',author:'Сергей Панов',anon:false,likes:['Настя Лебедева','Павел Ильин','Дмитрий Волков'],joins:['Настя Лебедева','Павел Ильин'],comments:[{author:'Настя Лебедева',text:'Только без рейтинга разработчиков — иначе метрики начнут накручивать.',when:'вчера'}],status:'review',ts:2,hidden:false},
+  {id:5,title:'Ретро-квест по кодовой базе',desc:'Онбординг-игра: новичок проходит квесты по нашему стеку и получает бейджи.',cat:'game',author:'Настя Лебедева',anon:false,likes:['Марина Ковалёва','Лена Соболева'],joins:['Лена Соболева'],comments:[],status:'review',ts:2,hidden:false},
+  {id:6,title:'Голосовые заметки → задачи',desc:'Наговорил идею на ходу — Whisper расшифровал, LLM превратил в оформленную задачу с тегами.',cat:'ai',author:'Игорь Тарасов',anon:false,likes:['Оля Морозова','Тимур Ахметов','Аня Гусева','Павел Ильин'],joins:['Тимур Ахметов','Аня Гусева'],comments:[{author:'Тимур Ахметов',text:'Расширил бы до планёрок: запись встречи на входе, задачи с исполнителями на выходе.',when:'3 ч назад'}],status:'review',ts:1,hidden:false},
+  {id:7,title:'День без совещаний: эксперимент',desc:'Две недели измеряем, что происходит с фокусом и скоростью, если убрать все встречи по вторникам.',cat:'other',custom:'Процессы',author:'Оля Морозова',anon:false,likes:['Марина Ковалёва','Сергей Панов'],joins:[],comments:[],status:'review',ts:1,hidden:false}
+];
+let seenAdmin=false,blocked=new Set(),iAmBlocked=false;
+let nextId=8,liked=new Set(),joined=new Set(),pFilter='all',pSort='new',openRow=null,newCat='ai',openIdeaId=null;
+
+const initials=n=>n.trim()[0]?.toUpperCase()||'?';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const catLabel=i=>i.cat==='other'&&i.custom?'Другое · '+i.custom:catById(i.cat).label;
+const visible=()=>ideas.filter(i=>!i.hidden);
+const left=()=>LIKE_BUDGET-[...liked].filter(id=>{const i=ideas.find(x=>x.id===id);return i&&!i.hidden;}).length;
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2400);}
+
+/* ---------- режимы ---------- */
+function setMode(m){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s-'+m).classList.add('active');
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  window.scrollTo({top:0});
+  document.getElementById('pTabs').style.display=(m==='participant'&&seenAdmin)?'flex':'none';
+  if(m==='admin'){seenAdmin=true;renderAdmin();}
+  if(m==='participant')renderCloud();
+}
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+/* ---------- имя ---------- */
+function openApp(){ setMode('participant'); }
+function toggleBlockedMe(){ iAmBlocked=!iAmBlocked; setMode('participant'); toast(iAmBlocked?'Режим заблокированного аккаунта':'Обычный режим'); }
+function toggleLoginError(){ document.getElementById('loginError').classList.toggle('show'); }
+
+function openNameModal(edit){
+  document.getElementById('displayName').value=ME;
+  const m=document.getElementById('nameModal');
+  m.classList.add('show');m.dataset.edit=edit?'1':'';
+  setTimeout(()=>document.getElementById('displayName').focus(),80);
+}
+function saveName(){
+  const v=document.getElementById('displayName').value.trim();
+  if(v.length<2){toast('Укажите имя');return;}
+  const old=ME;
+  if(v!==old){
+    ideas.forEach(i=>{
+      if(i.author===old)i.author=v;
+      i.likes=i.likes.map(n=>n===old?v:n);
+      i.joins=i.joins.map(n=>n===old?v:n);
+      i.comments.forEach(c=>{if(c.author===old)c.author=v;});
+    });
+    delete PEOPLE[old];ME=v;PEOPLE[ME]=MY_EMAIL;
+  }
+  ['whoName','whoNameA'].forEach(id=>document.getElementById(id).textContent=ME);
+  ['whoAv','whoAvA'].forEach(id=>document.getElementById(id).textContent=initials(ME));
+  const m=document.getElementById('nameModal');
+  m.classList.remove('show');
+  toast('Имя обновлено');renderCloud();
+}
+
+/* ---------- категории / фильтры ---------- */
+function buildCatPick(){
+  const w=document.getElementById('np-cats');
+  w.innerHTML=CATS.map(c=>`<button class="chip ${c.id===newCat?'active':''}" data-c="${c.id}"><span class="cc" style="background:${c.color}"></span>${c.label}</button>`).join('');
+  w.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{
+    newCat=ch.dataset.c;buildCatPick();
+    document.getElementById('np-custom').style.display=newCat==='other'?'block':'none';
+  });
+}
+function buildFilters(){
+  const w=document.getElementById('p-filters');
+  w.innerHTML=`<button class="chip ${pFilter==='all'?'active':''}" data-f="all">Все</button>`+
+    CATS.map(c=>`<button class="chip ${pFilter===c.id?'active':''}" data-f="${c.id}"><span class="cc" style="background:${c.color}"></span>${c.label}</button>`).join('');
+  w.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{pFilter=ch.dataset.f;buildFilters();renderCloud();});
+}
+document.querySelectorAll('#p-sort button').forEach(b=>b.onclick=()=>{
+  pSort=b.dataset.sort;
+  document.querySelectorAll('#p-sort button').forEach(x=>x.classList.toggle('active',x===b));
+  renderCloud();
+});
+function renderBudget(){
+  const n=left(),used=LIKE_BUDGET-n;
+  let pips='';for(let k=0;k<LIKE_BUDGET;k++)pips+=`<span class="pip ${k<used?'used':''}"></span>`;
+  document.getElementById('budget-host').innerHTML=
+    `<span class="budget ${n===0?'out':''}"><span class="pips">${pips}</span>${n===0?'Голоса закончились — снимите один, чтобы отдать другой':'Осталось голосов: '+n+' из '+LIKE_BUDGET}</span>`;
+}
+
+/* ---------- облако ---------- */
+function renderCloud(){
+  buildFilters();buildCatPick();renderBudget();
+  const host=document.getElementById('cloud');
+  let list=visible().filter(i=>pFilter==='all'||i.cat===pFilter);
+  document.getElementById('p-count').textContent=visible().length+' идей';
+  document.getElementById('blockedBanner').style.display=iAmBlocked?'flex':'none';
+  document.getElementById('composer').style.display=iAmBlocked?'none':'block';
+  list.sort(pSort==='popular'?(a,b)=>b.likes.length-a.likes.length:(a,b)=>b.ts-a.ts||b.id-a.id);
+  if(!list.length){host.innerHTML='<div class="empty-people" style="grid-column:1/-1;padding:30px 0">Здесь пока пусто. Предложите идею в форме выше.</div>';return;}
+  const spent=left()===0;
+  host.innerHTML=list.map(i=>{
+    const c=catById(i.cat),L=liked.has(i.id),J=joined.has(i.id),nc=i.comments.length;
+    return `<article class="idea">
+      <span class="tag"><span class="cc" style="background:${c.color}"></span>${esc(catLabel(i))}</span>
+      <h4 onclick="openIdea(${i.id})">${esc(i.title)}</h4>
+      <p class="desc">${esc(i.desc)}</p>
+      <button class="cbtn ${nc?'has':''}" onclick="openIdea(${i.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.5 8.5 0 01-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 013.6 8 8.5 8.5 0 0112 3.5a8.4 8.4 0 019 8z"/></svg>
+        ${nc?'Дополнения · '+nc:'Предложить дополнение'}
+      </button>
+      <div class="foot">
+        <span class="author"><span class="mini-av">${i.anon?'?':initials(i.author)}</span>${i.anon?'Аноним':esc(i.author)}</span>
+        <button class="react ${L?'on':''} ${!L&&spent?'spent':''}" onclick="toggleLike(${i.id})" title="${L?'Снять голос':'Отдать голос'}">
+          <svg viewBox="0 0 24 24" fill="${L?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M7 10v11M2 13v6a2 2 0 002 2h13.3a2 2 0 002-1.6l1.4-7a2 2 0 00-2-2.4H14V6a2.5 2.5 0 00-2.5-2.5L8 12H7"/></svg>${i.likes.length}
+        </button>
+        <button class="react join ${J?'on':''}" onclick="toggleJoin(${i.id})" title="Готов поработать над идеей">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>${J?'В команде':'В команду'} · ${i.joins.length}
+        </button>
+      </div>
+    </article>`;
+  }).join('');
+}
+function toggleLike(id){
+  if(iAmBlocked){toast('Публикация с вашего аккаунта приостановлена');return;}
+  const i=ideas.find(x=>x.id===id);
+  if(liked.has(id)){
+    liked.delete(id);i.likes=i.likes.filter(n=>n!==ME);
+    toast('Голос снят — свободных голосов: '+left());
+  }else{
+    if(left()===0){toast('Голоса закончились. Снимите голос с другой идеи, чтобы отдать его этой');renderCloud();return;}
+    liked.add(id);i.likes.push(ME);
+    toast(left()?'Голос учтён. Осталось: '+left():'Голос учтён. Это был последний из 5');
+  }
+  renderCloud();if(openIdeaId===id)openIdea(id);
+}
+function toggleJoin(id){
+  if(iAmBlocked){toast('Публикация с вашего аккаунта приостановлена');return;}
+  const i=ideas.find(x=>x.id===id);
+  if(joined.has(id)){joined.delete(id);i.joins=i.joins.filter(n=>n!==ME);}
+  else{joined.add(id);i.joins.push(ME);toast('Записали в команду 🙋');}
+  renderCloud();if(openIdeaId===id)openIdea(id);
+}
+
+/* ---------- карточка идеи + дополнения ---------- */
+function openIdea(id){
+  const i=ideas.find(x=>x.id===id);if(!i)return;
+  openIdeaId=id;
+  const c=catById(i.cat),L=liked.has(id),J=joined.has(id),spent=left()===0;
+  const cmts=i.comments.length?i.comments.map(x=>`
+    <div class="cmt"><span class="mini-av">${initials(x.author)}</span>
+      <div class="cbody"><div class="cname">${esc(x.author)} <span>${esc(x.when)}</span></div>
+      <div class="ctext">${esc(x.text)}</div></div></div>`).join('')
+    :`<div class="cmt" style="border-top:1px solid var(--border)"><div class="empty-people">Дополнений пока нет. Предложите, чего идее не хватает.</div></div>`;
+  document.getElementById('im-body').innerHTML=`
+    <div class="mhead"><span class="tag" style="background:var(--surface-2);color:var(--text-dim);font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:6px">
+      <span class="cc" style="width:7px;height:7px;border-radius:50%;background:${c.color}"></span>${esc(catLabel(i))}</span></div>
+    <h3 style="margin-top:10px">${esc(i.title)}</h3>
+    <p class="msub" style="margin-bottom:14px">${esc(i.desc)}</p>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:4px">
+      <span class="author" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-faint);margin-right:auto">
+        <span class="mini-av">${i.anon?'?':initials(i.author)}</span>${i.anon?'Аноним':esc(i.author)}</span>
+      <button class="react ${L?'on':''} ${!L&&spent?'spent':''}" onclick="toggleLike(${i.id})">
+        <svg viewBox="0 0 24 24" fill="${L?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M7 10v11M2 13v6a2 2 0 002 2h13.3a2 2 0 002-1.6l1.4-7a2 2 0 00-2-2.4H14V6a2.5 2.5 0 00-2.5-2.5L8 12H7"/></svg>${i.likes.length}</button>
+      <button class="react join ${J?'on':''}" onclick="toggleJoin(${i.id})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg>${J?'В команде':'В команду'} · ${i.joins.length}</button>
+    </div>
+    <div class="mscroll">
+      <div class="dl" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin:8px 0 2px">Дополнения · ${i.comments.length}</div>
+      ${cmts}
+    </div>
+    <div class="cmt-form">
+      <textarea class="inp" id="cmt-input" placeholder="Чего идее не хватает? Как бы вы её развернули?" maxlength="400" style="min-height:66px"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap">
+        <button class="primary" onclick="addComment(${i.id})">Отправить дополнение</button>
+        <span class="note" style="font-size:12.5px;color:var(--text-faint)">Появится под вашим именем · ${esc(ME)}</span>
+      </div>
+    </div>`;
+  document.getElementById('ideaModal').classList.add('show');
+}
+function closeIdea(){openIdeaId=null;document.getElementById('ideaModal').classList.remove('show');}
+function addComment(id){
+  const el=document.getElementById('cmt-input'),v=el.value.trim();
+  if(iAmBlocked){toast('Публикация с вашего аккаунта приостановлена');return;}
+  if(v.length<3){toast('Напишите пару слов');return;}
+  ideas.find(x=>x.id===id).comments.push({author:ME,text:v,when:'только что'});
+  toast('Дополнение добавлено 💬');
+  openIdea(id);renderCloud();
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeIdea();closeConfirm();document.getElementById('nameModal').classList.remove('show');}});
+
+/* ---------- новая идея ---------- */
+function submitIdea(){
+  const t=document.getElementById('np-title').value.trim();
+  const d=document.getElementById('np-desc').value.trim();
+  const anon=document.getElementById('np-anon').checked;
+  const custom=document.getElementById('np-custom').value.trim();
+  if(t.length<4){toast('Дайте идее название');return;}
+  ideas.unshift({id:nextId++,title:t,desc:d||'Без описания',cat:newCat,custom:newCat==='other'?custom:'',author:ME,anon,likes:[],joins:[],comments:[],status:'review',ts:9});
+  document.getElementById('np-title').value='';document.getElementById('np-desc').value='';
+  document.getElementById('np-custom').value='';document.getElementById('np-anon').checked=false;
+  toast('Идея в облаке ✦');renderCloud();
+}
+
+/* ---------- админ ---------- */
+const STATUS={review:'На рассмотрении',selected:'В программу',reserve:'В резерв'};
+function renderKPIs(){
+  const v=new Set();ideas.forEach(i=>{i.likes.forEach(n=>v.add(n));i.joins.forEach(n=>v.add(n));i.comments.forEach(c=>v.add(c.author));v.add(i.author);});
+  const votes=ideas.reduce((s,i)=>s+i.likes.length,0),byCat={};
+  ideas.forEach(i=>byCat[i.cat]=(byCat[i.cat]||0)+i.likes.length);
+  const top=Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('k-ideas').textContent=visible().length;
+  document.getElementById('k-people').textContent=v.size;
+  document.getElementById('k-votes').textContent=votes;
+  document.getElementById('k-top').textContent=top?catById(top[0]).label:'—';
+}
+function renderAdmin(){
+  const catSel=document.getElementById('a-cat');
+  if(!catSel.options.length)catSel.innerHTML='<option value="all">Все категории</option>'+CATS.map(c=>`<option value="${c.id}">${c.label}</option>`).join('');
+  renderKPIs();
+  const q=(document.getElementById('a-search').value||'').toLowerCase();
+  const cf=catSel.value||'all',sf=document.getElementById('a-sort').value;
+  let list=ideas.filter(i=>{
+    const hay=(i.title+' '+i.author+' '+mailOf(i.author)+' '+(i.custom||'')).toLowerCase();
+    return hay.includes(q)&&(cf==='all'||i.cat===cf);
+  });
+  if(sf==='likes')list.sort((a,b)=>b.likes.length-a.likes.length);
+  else if(sf==='joins')list.sort((a,b)=>b.joins.length-a.joins.length);
+  else if(sf==='cmts')list.sort((a,b)=>b.comments.length-a.comments.length);
+  else list.sort((a,b)=>b.ts-a.ts||b.id-a.id);
+  list.sort((a,b)=>(a.hidden?1:0)-(b.hidden?1:0));   // скрытые всегда в конце
+  let rank=0;
+
+  const chips=arr=>arr.map(n=>`<span class="person"><span class="mini-av">${initials(n)}</span><span>${esc(n)}<span class="pm">${esc(mailOf(n))}</span></span></span>`).join('');
+  const host=document.getElementById('rank-list');
+  if(!list.length){host.innerHTML='<div class="empty-people" style="padding:24px">Ничего не нашлось. Измените запрос или фильтр.</div>';return;}
+  host.innerHTML=list.map((i,idx)=>{
+    const c=catById(i.cat),open=openRow===i.id;
+    const r=i.hidden?'—':++rank;
+    const isB=blocked.has(i.author);
+    const cm=i.comments.length?i.comments.map(x=>`
+      <div class="cmt"><span class="mini-av">${initials(x.author)}</span>
+        <div class="cbody"><div class="cname">${esc(x.author)} <span class="pm" style="font-family:'JetBrains Mono',monospace">${esc(mailOf(x.author))}</span> <span>${esc(x.when)}</span></div>
+        <div class="ctext">${esc(x.text)}</div></div></div>`).join('')
+      :'<div class="empty-people">Дополнений нет</div>';
+    return `<div class="rrow ${(!i.hidden&&r<=3)?'top':''} ${open?'open':''} ${i.hidden?'hid':''}">
+      <div class="rmain" onclick="toggleRow(${i.id})">
+        <div class="rank">${r}</div>
+        <div class="rinfo">
+          <div class="rt">${esc(i.title)} <span class="tag" style="font-size:10px;padding:3px 8px;background:var(--surface-2);color:var(--text-dim);border-radius:999px;display:inline-flex;align-items:center;gap:6px"><span class="cc" style="width:6px;height:6px;border-radius:50%;background:${c.color}"></span>${esc(catLabel(i))}</span></div>
+          <div class="rmeta">
+            <span class="mini-av" style="width:20px;height:20px;font-size:10px">${initials(i.author)}</span>
+            ${esc(i.author)} <span class="mail">${esc(mailOf(i.author))}</span>
+            ${i.anon?'<span class="anon-badge">АНОНИМ ДЛЯ КОЛЛЕГ</span>':''}
+            ${i.hidden?'<span class="badge hid">СКРЫТА</span>':''}
+            ${isB?'<span class="badge blocked">АВТОР ЗАБЛОКИРОВАН</span>':''}
+          </div>
+        </div>
+        <div class="stat-pill like"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 10v11M2 13v6a2 2 0 002 2h13.3a2 2 0 002-1.6l1.4-7a2 2 0 00-2-2.4H14V6a2.5 2.5 0 00-2.5-2.5L8 12H7"/></svg>${i.likes.length}</div>
+        <div class="stat-pill join"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8z"/></svg>${i.joins.length}</div>
+        <div class="stat-pill cmt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 01-9 8.4 8.5 8.5 0 01-3.8-.9L3 21l1.9-5.2A8.4 8.4 0 013.6 8 8.5 8.5 0 0112 3.5a8.4 8.4 0 019 8z"/></svg>${i.comments.length}</div>
+        <select class="status-sel" onclick="event.stopPropagation()" onchange="setStatus(${i.id},this.value)">
+          ${Object.entries(STATUS).map(([k,v])=>`<option value="${k}" ${i.status===k?'selected':''}>${v}</option>`).join('')}
+        </select>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="rdetail"><div class="rdetail-in">
+        <div><div class="dl">Отдали голос · ${i.likes.length}</div><div class="people">${chips(i.likes)||'<span class="empty-people">Голосов пока нет</span>'}</div></div>
+        <div><div class="dl">Готовы в команду · ${i.joins.length}</div><div class="people">${chips(i.joins)||'<span class="empty-people">Желающих пока нет</span>'}</div></div>
+        <div class="rdesc">${esc(i.desc)}</div>
+        <div class="rcmts"><div class="dl">Дополнения · ${i.comments.length}</div>${cm}</div>
+        <div class="mod-row">
+          <button class="mod" onclick="toggleHide('${i.id}')">${i.hidden?'Вернуть идею':'Скрыть идею'}</button>
+          <button class="mod danger" onclick="askBlock('${i.id}')">${isB?'Разблокировать автора':'Заблокировать автора'}</button>
+          <span class="mod-note">${i.hidden?'Идея не видна сотрудникам, голоса вернулись в их бюджет':'Скрытую идею можно вернуть в любой момент'}</span>
+        </div>
+      </div></div>
+    </div>`;
+  }).join('');
+}
+function toggleHide(id){
+  const i=ideas.find(x=>String(x.id)===String(id));
+  i.hidden=!i.hidden;
+  toast(i.hidden?'Идея скрыта от сотрудников':'Идея снова видна');
+  renderAdmin();
+}
+function askBlock(id){
+  const i=ideas.find(x=>String(x.id)===String(id));
+  const who=i.author, isB=blocked.has(who);
+  document.getElementById('cf-title').textContent=isB?'Разблокировать автора?':'Заблокировать автора?';
+  document.getElementById('cf-text').innerHTML=isB
+    ? esc(who)+' снова сможет предлагать идеи, голосовать и писать дополнения.'
+    : esc(who)+' сможет читать идеи и обсуждения, но не сможет ничего публиковать и голосовать. Уже поданные идеи останутся — скрывайте их отдельно.';
+  const ok=document.getElementById('cf-ok');
+  ok.textContent=isB?'Разблокировать':'Заблокировать';
+  ok.onclick=()=>{
+    if(isB)blocked.delete(who); else blocked.add(who);
+    closeConfirm();toast(isB?'Автор разблокирован':'Автор заблокирован');renderAdmin();
+  };
+  document.getElementById('confirmModal').classList.add('show');
+}
+function closeConfirm(){document.getElementById('confirmModal').classList.remove('show');}
+function toggleRow(id){openRow=openRow===id?null:id;renderAdmin();}
+function setStatus(id,v){ideas.find(x=>x.id===id).status=v;toast('Статус обновлён');}
+
+buildCatPick();buildFilters();
+</script></body></html>
