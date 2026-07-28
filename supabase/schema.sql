@@ -65,16 +65,18 @@ create schema if not exists app;
 
 -- ЗАМЕНИТЬ на реальные рабочие почты организаторов, можно несколько через запятую.
 -- Личный gmail сюда не подойдёт: вход с чужого домена рубит триггер ниже.
+-- Каждый организатор перечислен в обоих доменах: люди заходят то с одной
+-- рабочей почты, то с другой, а признак админа считается по адресу из JWT.
 create function app.is_admin() returns boolean language sql stable as $$
   select coalesce(auth.jwt() ->> 'email', '') in (
-    'evgeny.evseev@pimpay.ru',
-    'vera.miroshnichenko@pimpay.ru',
-    'va@pimsolutions.ru',
-    'dmitrii.rybin@pimpay.ru',
-    'ekaterina.mitrofanova@pimsolutions.ru',
-    'aleksey.novikov@pimsolutions.ru',
-    'galina.konurina@pimsolutions.ru',
-    'alexandra.mavrina@pimsolutions.ru'
+    'evgeny.evseev@pimpay.ru',            'evgeny.evseev@pimsolutions.ru',
+    'vera.miroshnichenko@pimpay.ru',      'vera.miroshnichenko@pimsolutions.ru',
+    'va@pimpay.ru',                       'va@pimsolutions.ru',
+    'dmitrii.rybin@pimpay.ru',            'dmitrii.rybin@pimsolutions.ru',
+    'ekaterina.mitrofanova@pimpay.ru',    'ekaterina.mitrofanova@pimsolutions.ru',
+    'aleksey.novikov@pimpay.ru',          'aleksey.novikov@pimsolutions.ru',
+    'galina.konurina@pimpay.ru',          'galina.konurina@pimsolutions.ru',
+    'alexandra.mavrina@pimpay.ru',        'alexandra.mavrina@pimsolutions.ru'
   )
 $$;
 
