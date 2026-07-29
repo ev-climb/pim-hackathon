@@ -10,6 +10,7 @@ import IdeaModal from '@/components/IdeaModal.vue'
 import NameModal from '@/components/NameModal.vue'
 import SortToggle from '@/components/SortToggle.vue'
 import VoteBudget from '@/components/VoteBudget.vue'
+import { plural } from '@/plural'
 import { useAuth } from '@/stores/auth'
 import { useIdeas } from '@/stores/ideas'
 import { useToasts } from '@/stores/toasts'
@@ -76,7 +77,9 @@ onMounted(() => ideas.load())
 
     <div class="sec-head">
       <h2>Облако идей</h2>
-      <span class="count">{{ ideas.list.length }} идей</span>
+      <span class="count">
+        {{ ideas.list.length }} {{ plural(ideas.list.length, ['идея', 'идеи', 'идей']) }}
+      </span>
       <p>
         Поддержите понравившиеся идеи, поставив 👍, и жмите «В команду», если интересно поработать
         над этой идеей — так соберутся команды.<br />

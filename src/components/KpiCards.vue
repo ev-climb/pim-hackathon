@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { plural } from '@/plural'
+
 const props = defineProps<{
   ideas: number
   people: number
@@ -11,15 +13,27 @@ const props = defineProps<{
   <div class="kpis">
     <div class="kpi">
       <div class="kv">{{ props.ideas }}</div>
-      <div class="kl">идей предложено</div>
+      <div class="kl">
+        {{ plural(props.ideas, ['идея предложена', 'идеи предложено', 'идей предложено']) }}
+      </div>
     </div>
     <div class="kpi">
       <div class="kv">{{ props.people }}</div>
-      <div class="kl">сотрудников поучаствовало</div>
+      <div class="kl">
+        {{
+          plural(props.people, [
+            'сотрудник поучаствовал',
+            'сотрудника поучаствовало',
+            'сотрудников поучаствовало',
+          ])
+        }}
+      </div>
     </div>
     <div class="kpi">
       <div class="kv">{{ props.votes }}</div>
-      <div class="kl">голосов отдано</div>
+      <div class="kl">
+        {{ plural(props.votes, ['голос отдан', 'голоса отдано', 'голосов отдано']) }}
+      </div>
     </div>
     <div class="kpi plain">
       <div class="kv">{{ props.topCategory }}</div>
