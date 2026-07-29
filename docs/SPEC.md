@@ -61,14 +61,15 @@ create table profiles (
 create table ideas (
   id           uuid primary key default gen_random_uuid(),
   title        text not null check (char_length(title) between 4 and 80),
-  description  text not null check (char_length(description) <= 280),
+  description  text not null check (char_length(description) <= 500),
   category     category not null,
   custom_label text check (char_length(custom_label) <= 30),
   is_anonymous boolean not null default false,
   hidden       boolean not null default false,
   status       idea_status not null default 'REVIEW',
   author_id    uuid not null references profiles(id),
-  created_at   timestamptz not null default now()
+  created_at   timestamptz not null default now(),
+  edited_at    timestamptz              -- null, пока автор не правил идею
 );
 
 create table votes (
@@ -158,6 +159,43 @@ begin
   update profiles set blocked = val where id = target;
 end $$;
 
+-- правка своей идеи: функция, а не политика. грант update в Postgres не умеет
+-- зависеть от роли, и открытый автору update дал бы ему заодно status и hidden.
+-- меняются ровно пять колонок, edited_at штампуется здесь же
+create function public.update_my_idea(
+  target uuid, new_title text, new_description text,
+  new_category category, new_custom_label text, new_is_anonymous boolean
+) returns void
+language plpgsql security definer set search_path = public, app as $$
+declare owner uuid;
+begin
+  if app.is_blocked() then raise exception 'FORBIDDEN'; end if;
+  select author_id into owner from ideas where id = target and not hidden;
+  if owner is null or owner <> auth.uid() then raise exception 'NOT_YOUR_IDEA'; end if;
+  update ideas set
+    title = new_title, description = new_description, category = new_category,
+    custom_label = case when new_category = 'OTHER' then new_custom_label end,
+    is_anonymous = new_is_anonymous, edited_at = now()
+  where id = target;
+end $$;
+
+-- удаление своей идеи — только пока на неё не откликнулись коллеги.
+-- свои голос, «в команду» и дополнение не в счёт, иначе автор, поддержавший
+-- собственную идею, лишался бы права её убрать
+create function public.delete_my_idea(target uuid) returns void
+language plpgsql security definer set search_path = public, app as $$
+declare owner uuid;
+begin
+  if app.is_blocked() then raise exception 'FORBIDDEN'; end if;
+  select author_id into owner from ideas where id = target and not hidden;
+  if owner is null or owner <> auth.uid() then raise exception 'NOT_YOUR_IDEA'; end if;
+  if exists (select 1 from votes    where idea_id = target and user_id <> owner)
+     or exists (select 1 from joins    where idea_id = target and user_id <> owner)
+     or exists (select 1 from comments where idea_id = target and user_id <> owner)
+  then raise exception 'IDEA_HAS_REACTIONS'; end if;
+  delete from ideas where id = target;
+end $$;
+
 -- один запрос вместо трёх на старте приложения
 create function public.me() returns json
 language sql stable security definer set search_path = public, app as $$
@@ -174,18 +212,28 @@ $$;
 
 ### 3.3 Вью для сотрудников
 
-Всё, что видит рядовой участник. Обрати внимание: ни почт, ни `author_id`, ни `is_anonymous`, ни поимённых списков голосовавших — этих данных просто нет в ответе.
+Всё, что видит рядовой участник. Обрати внимание: ни почт, ни `author_id`, ни чужой анонимности, ни поимённых списков голосовавших — этих данных просто нет в ответе. Свою идею вью помечает сама: `is_mine`, `can_delete` и `is_anonymous` считаются по `auth.uid()`, поэтому кнопки «Изменить» и «Удалить» рисуются по ответу базы, а не по угадыванию на клиенте.
 
 ```sql
 create view ideas_public as
 select
-  i.id, i.title, i.description, i.category, i.custom_label, i.created_at,
+  i.id, i.title, i.description, i.category, i.custom_label, i.created_at, i.edited_at,
   case when i.is_anonymous then null else p.display_name end as author_name,
   (select count(*) from votes    v where v.idea_id = i.id) as vote_count,
   (select count(*) from joins    j where j.idea_id = i.id) as join_count,
   (select count(*) from comments c where c.idea_id = i.id) as comment_count,
   exists (select 1 from votes v where v.idea_id = i.id and v.user_id = auth.uid()) as has_voted,
-  exists (select 1 from joins j where j.idea_id = i.id and j.user_id = auth.uid()) as has_joined
+  exists (select 1 from joins j where j.idea_id = i.id and j.user_id = auth.uid()) as has_joined,
+  coalesce(i.author_id = auth.uid(), false) as is_mine,
+  -- анонимность отдаётся только автору: форма правки открывается с той же галочкой
+  case when i.author_id = auth.uid() then i.is_anonymous else false end as is_anonymous,
+  case when i.author_id = auth.uid() then not exists (
+         select 1 from votes    v where v.idea_id = i.id and v.user_id <> i.author_id
+         union all
+         select 1 from joins    j where j.idea_id = i.id and j.user_id <> i.author_id
+         union all
+         select 1 from comments c where c.idea_id = i.id and c.user_id <> i.author_id)
+       else false end as can_delete
 from ideas i join profiles p on p.id = i.author_id
 where not i.hidden;
 
@@ -207,6 +255,9 @@ where not i.hidden;   -- иначе дополнения к скрытой ид�
 revoke all on all tables in schema public from anon, authenticated;
 grant select on ideas_public, comments_public to authenticated;
 grant execute on function public.me(), public.set_blocked(uuid, boolean) to authenticated;
+grant execute on function                                   -- правка и удаление своей идеи
+  public.update_my_idea(uuid, text, text, category, text, boolean),
+  public.delete_my_idea(uuid) to authenticated;
 
 alter table profiles enable row level security;
 alter table ideas    enable row level security;
@@ -239,7 +290,7 @@ create policy c_read   on comments for select to authenticated using (app.is_adm
 create policy c_add    on comments for insert to authenticated with check (user_id = auth.uid() and not app.is_blocked());
 ```
 
-Политика `i_mod` покрывает и смену статуса, и скрытие идеи — обе операции доступны только организатору.
+Политика `i_mod` покрывает и смену статуса, и скрытие идеи — обе операции доступны только организатору. Автор своей идеи под неё не попадает: правка и удаление идут через `update_my_idea()` и `delete_my_idea()`. Причина — грант `update` в Postgres не умеет зависеть от роли: колоночный грант пришлось бы выдавать обеим ролям сразу, и вместе с текстом автор получил бы `status` и `hidden`, то есть возможность самому выбрать себя в программу.
 
 Сотрудник читает свои голоса — по ним считается остаток бюджета. Организатор читает все и джойнит с профилями на клиенте: этого хватает для колонок «кто голосовал» и «кто в команду».
 
@@ -258,6 +309,7 @@ create policy c_add    on comments for insert to authenticated with check (user_
 5. **Категория «Другое»** открывает необязательное поле «Своя тема одним-двумя словами». В UI: `Другое · <тема>`, если заполнено, иначе просто «Другое».
 6. **Модерация.** Организатор может **скрыть** идею (не удалить: скрытая исчезает у сотрудников, но остаётся в админке с пометкой и возвращается одной кнопкой) и **заблокировать** автора (читать может, публиковать и голосовать — нет; заблокированный видит понятный баннер, а не молча ломающиеся кнопки). Скрытие идеи возвращает потраченные на неё голоса в бюджет проголосовавших — это происходит само, потому что бюджет считается только по видимым идеям. Блокировка не скрывает уже поданные идеи, это отдельное действие.
 7. **Сортировка по умолчанию — «Новые»**, «Популярные» вторым переключателем. Иначе поздние идеи никто не увидит.
+8. **Своя идея правится и удаляется автором.** Правка — в любой момент, все поля разом, включая категорию и анонимность; после неё в углу карточки и в модалке появляется подпись «изменено», голоса и дополнения остаются на месте. Удаление — **только пока на идею не откликнулись коллеги**: чужой голос, «в команду» или дополнение закрывают его насовсем, дальше остаётся правка или просьба к организаторам скрыть идею. Собственные отклики автора не в счёт, иначе поддержавший свою идею лишался бы права её убрать. Кнопка удаления остаётся видимой и в закрытом случае — она объясняет отказ тостом, а не исчезает молча. Заблокированному недоступно ни то, ни другое. Проверяет всё база: `update_my_idea()` и `delete_my_idea()`, а не спрятанные кнопки.
 
 ---
 
@@ -286,6 +338,8 @@ create policy c_add    on comments for insert to authenticated with check (user_
 ### 5.2 Компоненты
 
 Разбирай прототип по блокам: `CircuitBackground`, `IdeaComposer`, `CategoryChips`, `VoteBudget`, `SortToggle`, `IdeaCard`, `IdeaModal`, `BaseModal`, `ToastHost`, `KpiCards`, `RankRow`.
+
+Правка идеи отдельной формы не получила: `IdeaEditModal` — это `BaseModal` с тем же `IdeaComposer`, которому передали идею. Одна форма, одни ограничения полей, ничего не разъезжается.
 
 Сторы: `auth`, `ideas` (список, фильтры, сортировка, оптимистичные апдейты), `toasts`.
 
@@ -336,6 +390,9 @@ create policy c_add    on comments for insert to authenticated with check (user_
 - [ ] \* Заблокированный не может вставить голос или идею прямым запросом.
 - [ ] \* Сотрудник не может снять с себя блокировку: `update profiles set blocked=false` не проходит.
 - [ ] Скрытая идея исчезает у сотрудников, а голоса за неё возвращаются в бюджет.
+- [ ] Правка своей идеи меняет текст у всех и оставляет подпись «изменено»; голоса и дополнения на месте.
+- [ ] \* `select public.update_my_idea('<чужая идея>', …)` отвечает `NOT_YOUR_IDEA`.
+- [ ] Идея без откликов удаляется автором; после чужого 👍 или дополнения кнопка объясняет отказ.
 - [ ] Идея в «Другое» без темы не ломает вёрстку.
 - [ ] На 375px ничего не выезжает, модалка скроллится, Escape закрывает.
 
@@ -343,4 +400,6 @@ create policy c_add    on comments for insert to authenticated with check (user_
 
 ## 8. Не делать
 
-Удаление идей (только скрытие), редактирование идей, ответы на дополнения, уведомления, экспорт, подсказку про дубли, realtime, ленту активности, роли сложнее двух, i18n, тесты. Если рука тянется что-то обобщить — не надо, это разовый опрос на две недели.
+Ответы на дополнения, уведомления, экспорт, подсказку про дубли, realtime, ленту активности, роли сложнее двух, i18n. Если рука тянется что-то обобщить — не надо, это разовый опрос на две недели.
+
+**Что вышло из этого списка после первой недели:** правка и удаление своей идеи (§4.8) и проверки схемы `supabase/test/01-checks.sql`. Первое попросили люди — опечатку в собственной идее иначе было не исправить; второе окупилось на первой же перестройке вью.

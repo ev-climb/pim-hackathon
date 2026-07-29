@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { categoryOf } from '@/catalog'
-import { initials } from '@/time'
+import { ago, initials } from '@/time'
 import type { IdeaPublic } from '@/api/ideas'
 
-const props = defineProps<{ idea: IdeaPublic; spent: boolean }>()
-const emit = defineEmits<{ open: []; vote: []; join: [] }>()
+// manage — своя идея и автор не заблокирован: только тогда есть правка и удаление
+const props = defineProps<{ idea: IdeaPublic; spent: boolean; manage: boolean }>()
+const emit = defineEmits<{ open: []; vote: []; join: []; edit: []; remove: [] }>()
 
 const cat = computed(() => categoryOf(props.idea.category))
 // «Другое · <тема>», если тема заполнена, иначе просто «Другое» (§4.5)
@@ -18,7 +19,33 @@ const label = computed(() =>
 
 <template>
   <article class="idea">
-    <span class="tag"><span class="cc" :style="{ background: cat.color }"></span>{{ label }}</span>
+    <div class="itop">
+      <span class="tag"><span class="cc" :style="{ background: cat.color }"></span>{{ label }}</span>
+      <span
+        v-if="props.idea.edited_at"
+        class="edited"
+        :title="'Автор изменил идею ' + ago(props.idea.edited_at)"
+        >изменено</span
+      >
+      <template v-if="props.manage">
+        <button class="own" title="Изменить идею" aria-label="Изменить идею" @click="emit('edit')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" />
+          </svg>
+        </button>
+        <button
+          class="own del"
+          :class="{ dim: !props.idea.can_delete }"
+          title="Удалить идею"
+          aria-label="Удалить идею"
+          @click="emit('remove')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" />
+          </svg>
+        </button>
+      </template>
+    </div>
     <h4 @click="emit('open')">{{ props.idea.title }}</h4>
     <p class="desc">{{ props.idea.description }}</p>
     <button class="cbtn" :class="{ has: props.idea.comment_count }" @click="emit('open')">
@@ -91,6 +118,41 @@ const label = computed(() =>
   border-color: var(--border-strong);
   transform: translateY(-3px);
   box-shadow: var(--shadow);
+}
+.itop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Категория слева, «изменено» и кнопки автора — в правом углу карточки */
+.itop .tag {
+  margin-right: auto;
+}
+.edited {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.own {
+  padding: 4px;
+  color: var(--text-faint);
+  transition: 0.15s;
+  flex: none;
+}
+.own svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+.own:hover {
+  color: var(--text);
+}
+.own.del:hover {
+  color: #f87171;
+}
+/* Откликнулись — удалить уже нельзя; кнопка остаётся, но объясняет отказ */
+.own.del.dim {
+  opacity: 0.45;
 }
 .idea h4 {
   margin: 0;

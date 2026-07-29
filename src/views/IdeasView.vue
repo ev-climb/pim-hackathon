@@ -1,25 +1,57 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import AppTopbar from '@/components/AppTopbar.vue'
+import BaseModal from '@/components/BaseModal.vue'
 import CategoryChips from '@/components/CategoryChips.vue'
 import IdeaCard from '@/components/IdeaCard.vue'
 import IdeaComposer from '@/components/IdeaComposer.vue'
+import IdeaEditModal from '@/components/IdeaEditModal.vue'
 import IdeaModal from '@/components/IdeaModal.vue'
 import NameModal from '@/components/NameModal.vue'
 import SortToggle from '@/components/SortToggle.vue'
 import VoteBudget from '@/components/VoteBudget.vue'
 import { useAuth } from '@/stores/auth'
 import { useIdeas } from '@/stores/ideas'
+import { useToasts } from '@/stores/toasts'
+import type { IdeaPublic } from '@/api/ideas'
 
 const auth = useAuth()
 const ideas = useIdeas()
+const { toast } = useToasts()
 
 const nameOpen = ref(false)
 const openId = ref<string | null>(null)
+const editId = ref<string | null>(null)
+const removeTarget = ref<IdeaPublic | null>(null)
 
 const blocked = computed(() => auth.me?.blocked ?? false)
 const spent = computed(() => ideas.votesLeft === 0)
 const openIdea = computed(() => ideas.list.find((i) => i.id === openId.value) ?? null)
+const editIdea = computed(() => ideas.list.find((i) => i.id === editId.value) ?? null)
+
+/** Свою идею правит и удаляет только автор, и только пока не заблокирован (§4.6) */
+const canManage = (idea: IdeaPublic) => idea.is_mine && !blocked.value
+
+function startEdit(idea: IdeaPublic) {
+  openId.value = null
+  editId.value = idea.id
+}
+
+/** Удалять поздно — объясняем это до модалки, а не после отказа базы */
+function askRemove(idea: IdeaPublic) {
+  if (!idea.can_delete) {
+    toast('Идею уже поддержали коллеги — удалить нельзя, но её можно изменить')
+    return
+  }
+  openId.value = null
+  removeTarget.value = idea
+}
+
+async function confirmRemove() {
+  const target = removeTarget.value
+  removeTarget.value = null
+  if (target) await ideas.remove(target.id)
+}
 
 onMounted(() => ideas.load())
 </script>
@@ -74,9 +106,12 @@ onMounted(() => ideas.load())
           :key="idea.id"
           :idea="idea"
           :spent="spent"
+          :manage="canManage(idea)"
           @open="openId = idea.id"
           @vote="ideas.toggleVote(idea.id)"
           @join="ideas.toggleJoin(idea.id)"
+          @edit="startEdit(idea)"
+          @remove="askRemove(idea)"
         />
       </template>
     </div>
@@ -87,10 +122,26 @@ onMounted(() => ideas.load())
     v-if="openIdea"
     :idea="openIdea"
     :spent="spent"
+    :manage="canManage(openIdea)"
     @close="openId = null"
     @vote="ideas.toggleVote(openIdea.id)"
     @join="ideas.toggleJoin(openIdea.id)"
+    @edit="startEdit(openIdea)"
+    @remove="askRemove(openIdea)"
   />
+  <IdeaEditModal v-if="editIdea" :idea="editIdea" @close="editId = null" />
+
+  <BaseModal v-if="removeTarget" label="Подтверждение" @close="removeTarget = null">
+    <h3>Удалить идею?</h3>
+    <p class="msub">
+      «{{ removeTarget.title }}» исчезнет из облака навсегда — вернуть её сможет только повторная
+      публикация.
+    </p>
+    <div class="cf-actions">
+      <button class="primary" @click="confirmRemove">Удалить</button>
+      <button class="btn-quiet" @click="removeTarget = null">Отмена</button>
+    </div>
+  </BaseModal>
 </template>
 
 <style scoped>
@@ -139,5 +190,9 @@ onMounted(() => ideas.load())
 }
 .blocked-banner b {
   color: var(--text);
+}
+.cf-actions {
+  display: flex;
+  gap: 10px;
 }
 </style>

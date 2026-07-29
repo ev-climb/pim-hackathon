@@ -8,12 +8,16 @@ export type IdeaPublic = {
   category: Category
   custom_label: string | null
   created_at: string
+  edited_at: string | null
   author_name: string | null
   vote_count: number
   join_count: number
   comment_count: number
   has_voted: boolean
   has_joined: boolean
+  is_mine: boolean
+  is_anonymous: boolean
+  can_delete: boolean
 }
 
 export type CommentPublic = {
@@ -32,12 +36,21 @@ export type NewIdea = {
   is_anonymous: boolean
 }
 
-/** База отдаёт 'VOTE_BUDGET_EXCEEDED' из триггера app.vote_budget(). */
-export const isBudgetError = (e: unknown) =>
-  String((e as { message?: string })?.message ?? '').includes('VOTE_BUDGET_EXCEEDED')
+const message = (e: unknown) => String((e as { message?: string })?.message ?? '')
 
-/** 42501 — нарушение политики: так выглядит попытка записи из заблокированного аккаунта. */
-export const isForbiddenError = (e: unknown) => (e as { code?: string })?.code === '42501'
+/** База отдаёт 'VOTE_BUDGET_EXCEEDED' из триггера app.vote_budget(). */
+export const isBudgetError = (e: unknown) => message(e).includes('VOTE_BUDGET_EXCEEDED')
+
+/**
+ * 42501 — нарушение политики: так выглядит попытка записи из заблокированного
+ * аккаунта. 'FORBIDDEN' — то же самое, но из update_my_idea/delete_my_idea:
+ * функции проверяют блокировку сами, до политик дело не доходит.
+ */
+export const isForbiddenError = (e: unknown) =>
+  (e as { code?: string })?.code === '42501' || message(e).includes('FORBIDDEN')
+
+/** delete_my_idea(): на идею уже откликнулись коллеги, удалять поздно. */
+export const isReactionsError = (e: unknown) => message(e).includes('IDEA_HAS_REACTIONS')
 
 export async function fetchIdeas(): Promise<IdeaPublic[]> {
   const { data, error } = await supabase
@@ -52,6 +65,25 @@ export async function fetchIdeas(): Promise<IdeaPublic[]> {
 // поэтому returning упал бы на RLS. Список перечитываем отдельным запросом.
 export async function createIdea(idea: NewIdea, authorId: string) {
   const { error } = await supabase.from('ideas').insert({ ...idea, author_id: authorId })
+  if (error) throw error
+}
+
+// Правка и удаление — через функции: колоночного гранта на ideas у автора нет,
+// иначе вместе с текстом он получил бы status и hidden (§3.4).
+export async function updateIdea(ideaId: string, idea: NewIdea) {
+  const { error } = await supabase.rpc('update_my_idea', {
+    target: ideaId,
+    new_title: idea.title,
+    new_description: idea.description,
+    new_category: idea.category,
+    new_custom_label: idea.custom_label,
+    new_is_anonymous: idea.is_anonymous,
+  })
+  if (error) throw error
+}
+
+export async function deleteIdea(ideaId: string) {
+  const { error } = await supabase.rpc('delete_my_idea', { target: ideaId })
   if (error) throw error
 }
 

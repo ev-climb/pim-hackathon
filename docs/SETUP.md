@@ -72,6 +72,14 @@ select
 
 Ошибка `already exists` при повторном запуске означает, что блок уже применён: объект есть, а транзакционность гарантирует, что применился он целиком.
 
+**Если база уже создана по прежней версии схемы**, `schema.sql` заново не запускается — на неё накатываются миграции из `supabase/`, по порядку номеров, теми же блоками в чистой вкладке:
+
+| Файл | Что добавляет |
+|---|---|
+| `migrate-01-edit-delete.sql` | правку и удаление своей идеи (`update_my_idea`, `delete_my_idea`), `ideas.edited_at`, описание до 500 символов, новые колонки `ideas_public` |
+
+Миграции идемпотентны, повторный запуск безвреден, последний блок каждой печатает ожидаемые числа. Количество политик при этом не меняется — их по-прежнему 13. После добавления функций PostgREST обновляет кэш схемы сам; если `rpc` отвечает «Could not find the function», это лечится кнопкой Settings → API → **Reload schema cache**.
+
 ---
 
 ## C. Организаторы
@@ -263,7 +271,7 @@ ideas        → 42501 permission denied for table ideas
 profiles     → 42501 permission denied for table profiles
 ```
 
-Правила из §4 прогоняются автоматически — `supabase/test/01-checks.sql`, 21 проверка: приватность, бюджет голосов, блокировка, модерация. Работает на Postgres 16 и 17.
+Правила из §4 прогоняются автоматически — `supabase/test/01-checks.sql`, 29 проверок: приватность, бюджет голосов, блокировка, модерация, правка и удаление своей идеи. Работает на Postgres 16 и 17.
 
 ```bash
 docker run -d --name pimtest -e POSTGRES_PASSWORD=pw -v "$PWD/supabase":/sb:ro postgres:17-alpine
@@ -302,7 +310,8 @@ docker rm -f pimtest
 | `Permission … denied to deploy key` при верном ключе | ssh-agent и `~/.ssh/config` подсовывают чужой ключ первым | `core.sshCommand` с `-F /dev/null -o IdentityAgent=none` |
 | Вкладка «Рейтинг» не появилась у нового админа | `is_admin` кэширован в сторе после `me()` | перезагрузить страницу |
 | Превью-деплой падает на отсутствии ключа | переменные заданы только для Production | задать для всех окружений |
-| Проверки дают 13 OK вместо 21 | в тесте зашит адрес, которого нет в `app.is_admin()` | поправить адрес в `test/01-checks.sql` |
+| Проверки дают 13 OK вместо 29 | в тесте зашит адрес, которого нет в `app.is_admin()` | поправить адрес в `test/01-checks.sql` |
+| `Could not find the function public.update_my_idea` | PostgREST не увидел новых функций после миграции | Settings → API → **Reload schema cache** |
 
 ---
 

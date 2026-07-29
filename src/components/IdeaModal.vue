@@ -8,8 +8,8 @@ import { useIdeas } from '@/stores/ideas'
 import { useToasts } from '@/stores/toasts'
 import type { IdeaPublic } from '@/api/ideas'
 
-const props = defineProps<{ idea: IdeaPublic; spent: boolean }>()
-const emit = defineEmits<{ close: []; vote: []; join: [] }>()
+const props = defineProps<{ idea: IdeaPublic; spent: boolean; manage: boolean }>()
+const emit = defineEmits<{ close: []; vote: []; join: []; edit: []; remove: [] }>()
 
 const auth = useAuth()
 const ideas = useIdeas()
@@ -46,6 +46,12 @@ async function send() {
 
     <div class="mhead">
       <span class="tag"><span class="cc" :style="{ background: cat.color }"></span>{{ label }}</span>
+      <span
+        v-if="props.idea.edited_at"
+        class="edited"
+        :title="'Автор изменил идею ' + ago(props.idea.edited_at)"
+        >изменено</span
+      >
     </div>
     <h3 style="margin-top: 10px">{{ props.idea.title }}</h3>
     <p class="msub" style="margin-bottom: 14px">{{ props.idea.description }}</p>
@@ -81,6 +87,12 @@ async function send() {
         </svg>
         {{ props.idea.has_joined ? 'В команде' : 'В команду' }} · {{ props.idea.join_count }}
       </button>
+    </div>
+
+    <div v-if="props.manage" class="mine-row">
+      <button class="mod" @click="emit('edit')">Изменить идею</button>
+      <button class="mod danger" @click="emit('remove')">Удалить</button>
+      <span class="mod-note">Это ваша идея</span>
     </div>
 
     <div class="mscroll">
@@ -127,6 +139,43 @@ async function send() {
   gap: 10px;
   flex-wrap: wrap;
   padding-bottom: 4px;
+}
+.edited {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding-top: 6px;
+  white-space: nowrap;
+}
+/* Кнопки автора — тем же тоном, что и модерация в рейтинге */
+.mine-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.mod {
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  transition: 0.15s;
+}
+.mod:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.mod.danger:hover {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #f87171;
+}
+.mod-note {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-left: auto;
 }
 .cmt-send {
   display: flex;

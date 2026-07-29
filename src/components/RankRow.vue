@@ -37,6 +37,9 @@ const isTop = computed(() => !props.idea.hidden && props.rank !== null && props.
           {{ props.idea.authorName }}
           <span class="mail">{{ props.idea.authorEmail }}</span>
           <span v-if="props.idea.is_anonymous" class="anon-badge">АНОНИМ ДЛЯ КОЛЛЕГ</span>
+          <span v-if="props.idea.edited_at" class="badge hid" :title="ago(props.idea.edited_at)"
+            >ИЗМЕНЕНА АВТОРОМ</span
+          >
           <span v-if="props.idea.hidden" class="badge hid">СКРЫТА</span>
           <span v-if="props.idea.authorBlocked" class="badge blocked">АВТОР ЗАБЛОКИРОВАН</span>
         </div>

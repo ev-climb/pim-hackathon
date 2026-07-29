@@ -30,14 +30,15 @@ create table profiles (
 create table ideas (
   id           uuid primary key default gen_random_uuid(),
   title        text not null check (char_length(title) between 4 and 80),
-  description  text not null check (char_length(description) <= 280),
+  description  text not null check (char_length(description) <= 500),
   category     category not null,
   custom_label text check (char_length(custom_label) <= 30),
   is_anonymous boolean not null default false,
   hidden       boolean not null default false,
   status       idea_status not null default 'REVIEW',
   author_id    uuid not null references profiles(id),
-  created_at   timestamptz not null default now()
+  created_at   timestamptz not null default now(),
+  edited_at    timestamptz              -- null, пока автор не правил идею
 );
 
 create table votes (
@@ -121,6 +122,48 @@ begin
   update profiles set blocked = val where id = target;
 end $$;
 
+-- Правка своей идеи. Через функцию, а не через политику на ideas: грант update
+-- в Postgres не умеет зависеть от роли, и открытый автору update дал бы ему
+-- заодно status и hidden — то есть возможность самому себя выбрать в программу.
+-- Функция меняет ровно пять колонок и штампует edited_at.
+create function public.update_my_idea(
+  target uuid, new_title text, new_description text,
+  new_category category, new_custom_label text, new_is_anonymous boolean
+) returns void
+language plpgsql security definer set search_path = public, app as $$
+declare owner uuid;
+begin
+  if app.is_blocked() then raise exception 'FORBIDDEN'; end if;
+  select author_id into owner from ideas where id = target and not hidden;
+  if owner is null or owner <> auth.uid() then raise exception 'NOT_YOUR_IDEA'; end if;
+  update ideas set
+    title        = new_title,
+    description  = new_description,
+    category     = new_category,
+    -- Своя тема живёт только у «Другого» (§4.5): сменил категорию — тема ушла
+    custom_label = case when new_category = 'OTHER' then new_custom_label end,
+    is_anonymous = new_is_anonymous,
+    edited_at    = now()
+  where id = target;
+end $$;
+
+-- Удаление своей идеи — только пока на неё не откликнулись коллеги.
+-- Свои же голос, «в команду» и дополнение не в счёт: иначе автор,
+-- поддержавший собственную идею, лишался бы права её убрать.
+create function public.delete_my_idea(target uuid) returns void
+language plpgsql security definer set search_path = public, app as $$
+declare owner uuid;
+begin
+  if app.is_blocked() then raise exception 'FORBIDDEN'; end if;
+  select author_id into owner from ideas where id = target and not hidden;
+  if owner is null or owner <> auth.uid() then raise exception 'NOT_YOUR_IDEA'; end if;
+  if exists (select 1 from votes    where idea_id = target and user_id <> owner)
+     or exists (select 1 from joins    where idea_id = target and user_id <> owner)
+     or exists (select 1 from comments where idea_id = target and user_id <> owner)
+  then raise exception 'IDEA_HAS_REACTIONS'; end if;
+  delete from ideas where id = target;  -- каскадом уносит собственные отклики автора
+end $$;
+
 create function public.me() returns json
 language sql stable security definer set search_path = public, app as $$
   select json_build_object(
@@ -136,13 +179,25 @@ $$;
 -- ==== 3. Вью для сотрудников ====
 create view ideas_public as
 select
-  i.id, i.title, i.description, i.category, i.custom_label, i.created_at,
+  i.id, i.title, i.description, i.category, i.custom_label, i.created_at, i.edited_at,
   case when i.is_anonymous then null else p.display_name end as author_name,
   (select count(*) from votes    v where v.idea_id = i.id) as vote_count,
   (select count(*) from joins    j where j.idea_id = i.id) as join_count,
   (select count(*) from comments c where c.idea_id = i.id) as comment_count,
   exists (select 1 from votes v where v.idea_id = i.id and v.user_id = auth.uid()) as has_voted,
-  exists (select 1 from joins j where j.idea_id = i.id and j.user_id = auth.uid()) as has_joined
+  exists (select 1 from joins j where j.idea_id = i.id and j.user_id = auth.uid()) as has_joined,
+  -- Своя идея: по этому признаку появляются «Изменить» и «Удалить».
+  -- Про чужую анонимность вью по-прежнему молчит — is_anonymous отдаётся
+  -- только автору, ему оно нужно, чтобы форма правки открылась с той же галочкой.
+  coalesce(i.author_id = auth.uid(), false) as is_mine,
+  case when i.author_id = auth.uid() then i.is_anonymous else false end as is_anonymous,
+  case when i.author_id = auth.uid() then not exists (
+         select 1 from votes    v where v.idea_id = i.id and v.user_id <> i.author_id
+         union all
+         select 1 from joins    j where j.idea_id = i.id and j.user_id <> i.author_id
+         union all
+         select 1 from comments c where c.idea_id = i.id and c.user_id <> i.author_id)
+       else false end as can_delete
 from ideas i join profiles p on p.id = i.author_id
 where not i.hidden;
 
@@ -157,6 +212,9 @@ where not i.hidden;
 revoke all on all tables in schema public from anon, authenticated;
 grant select on ideas_public, comments_public to authenticated;
 grant execute on function public.me(), public.set_blocked(uuid, boolean) to authenticated;
+grant execute on function
+  public.update_my_idea(uuid, text, text, category, text, boolean),
+  public.delete_my_idea(uuid) to authenticated;
 
 alter table profiles enable row level security;
 alter table ideas    enable row level security;
@@ -175,6 +233,8 @@ create policy p_rename on profiles for update to authenticated using (id = auth.
 
 create policy i_admin  on ideas for select to authenticated using (app.is_admin());
 create policy i_new    on ideas for insert to authenticated with check (author_id = auth.uid() and not app.is_blocked());
+-- i_mod остаётся админской: правка и удаление своей идеи идут не напрямую,
+-- а через update_my_idea() и delete_my_idea() — там же и их ограничения.
 create policy i_mod    on ideas for update to authenticated using (app.is_admin()) with check (app.is_admin());
 
 create policy v_read   on votes for select to authenticated using (user_id = auth.uid() or app.is_admin());

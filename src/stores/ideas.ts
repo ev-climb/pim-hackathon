@@ -5,12 +5,15 @@ import {
   addJoin,
   addVote,
   createIdea,
+  deleteIdea,
   fetchComments,
   fetchIdeas,
   isBudgetError,
   isForbiddenError,
+  isReactionsError,
   removeJoin,
   removeVote,
+  updateIdea,
   type CommentPublic,
   type IdeaPublic,
   type NewIdea,
@@ -55,6 +58,8 @@ export const useIdeas = defineStore('ideas', () => {
   function reportWriteError(e: unknown) {
     if (isBudgetError(e)) {
       toast('Голоса закончились. Снимите голос с другой идеи, чтобы отдать его этой')
+    } else if (isReactionsError(e)) {
+      toast('Идею уже поддержали коллеги — удалить нельзя, но её можно изменить')
     } else if (isForbiddenError(e)) {
       toast('Публикация с вашего аккаунта приостановлена')
     } else {
@@ -133,6 +138,35 @@ export const useIdeas = defineStore('ideas', () => {
     }
   }
 
+  async function edit(id: string, idea: NewIdea) {
+    if (!auth.userId || blockedStop()) return false
+    try {
+      await updateIdea(id, idea)
+      await load()
+      toast('Идея обновлена ✦')
+      return true
+    } catch (e) {
+      reportWriteError(e)
+      return false
+    }
+  }
+
+  async function remove(id: string) {
+    const idea = list.value.find((i) => i.id === id)
+    if (!idea || !auth.userId || blockedStop()) return false
+    try {
+      await deleteIdea(id)
+      // Свой голос уходит вместе с идеей — возвращаем его в бюджет
+      if (idea.has_voted) auth.addVotesUsed(-1)
+      list.value = list.value.filter((i) => i.id !== id)
+      toast('Идея удалена')
+      return true
+    } catch (e) {
+      reportWriteError(e)
+      return false
+    }
+  }
+
   async function loadComments(ideaId: string) {
     commentsLoading.value = true
     comments.value = []
@@ -171,6 +205,8 @@ export const useIdeas = defineStore('ideas', () => {
     toggleVote,
     toggleJoin,
     submit,
+    edit,
+    remove,
     loadComments,
     postComment,
   }

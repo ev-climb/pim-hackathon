@@ -13,6 +13,7 @@ export type AdminIdea = {
   status: IdeaStatus
   author_id: string
   created_at: string
+  edited_at: string | null
 }
 
 export type Profile = {

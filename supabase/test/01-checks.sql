@@ -2,8 +2,9 @@
 \set QUIET on
 \pset pager off
 
--- 21 проверка правил из §4 SPEC.md: приватность, бюджет голосов, блокировка,
--- модерация. Гоняется на пустой базе поверх 00-stub.sql и schema.sql —
+-- 29 проверок правил из §4 SPEC.md: приватность, бюджет голосов, блокировка,
+-- модерация, правка и удаление своей идеи. Гоняется на пустой базе поверх
+-- 00-stub.sql и schema.sql —
 -- скрипт вставляет свои данные, повторный запуск упадёт на дубликате ключа.
 --
 -- ВНИМАНИЕ: адрес 'evgeny.evseev@pimpay.ru' ниже должен присутствовать
@@ -271,6 +272,139 @@ begin
   raise exception 'FAIL 19: заблокированный написал дополнение';
 exception when insufficient_privilege then
   raise notice 'OK  19 дополнение заблокированного отклонено политикой';
+end $$;
+
+-- ============ снова сотрудник: правка и удаление своей идеи ============
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"11111111-1111-1111-1111-111111111111","email":"e.sokolov@pimsolutions.ru"}', false);
+set role authenticated;
+
+-- 20. автор правит свою идею, у неё появляется отметка edited_at
+do $$
+declare mine uuid; t text; c text; e timestamptz;
+begin
+  select id into mine from ideas_public where title='Моя идея';
+  perform public.update_my_idea(mine,'Моя идея, версия два','описание получше','TOOLS','мимо',false);
+  select title, custom_label, edited_at into t, c, e from ideas_public where id=mine;
+  if t <> 'Моя идея, версия два' then raise exception 'FAIL 20: заголовок = %', t; end if;
+  if c is not null then raise exception 'FAIL 20: своя тема осталась не у «Другого»: %', c; end if;
+  if e is null then raise exception 'FAIL 20: edited_at пуст'; end if;
+  raise notice 'OK  20 автор изменил свою идею, edited_at = %', e;
+end $$;
+
+-- 21. чужую идею не изменить и не удалить
+do $$
+declare alien uuid;
+begin
+  select id into alien from ideas_public where title='Идея два';
+  perform public.update_my_idea(alien,'Захват','описание','AI',null,false);
+  raise exception 'FAIL 21: переписал чужую идею';
+exception when others then
+  if sqlerrm <> 'NOT_YOUR_IDEA' then raise; end if;
+  raise notice 'OK  21 правка чужой идеи отклонена: %', sqlerrm;
+end $$;
+
+do $$
+declare alien uuid;
+begin
+  select id into alien from ideas_public where title='Идея два';
+  perform public.delete_my_idea(alien);
+  raise exception 'FAIL 21: удалил чужую идею';
+exception when others then
+  if sqlerrm <> 'NOT_YOUR_IDEA' then raise; end if;
+  raise notice 'OK  21 удаление чужой идеи отклонено: %', sqlerrm;
+end $$;
+
+-- 22. описание: 500 символов проходит, 501 отклоняется
+do $$
+declare mine uuid;
+begin
+  select id into mine from ideas_public where title='Моя идея, версия два';
+  perform public.update_my_idea(mine,'Моя идея, версия два',repeat('я',500),'AI',null,false);
+  if (select char_length(description) from ideas_public where id=mine) <> 500 then
+    raise exception 'FAIL 22: описание не сохранилось целиком'; end if;
+  begin
+    perform public.update_my_idea(mine,'Моя идея, версия два',repeat('я',501),'AI',null,false);
+    raise exception 'FAIL 22: описание в 501 символ прошло';
+  exception when check_violation then
+    raise notice 'OK  22 описание в 500 символов сохранено, 501 отклонён базой';
+  end;
+end $$;
+
+-- 23. свой голос удалению не мешает: идея уходит вместе с ним
+delete from votes where user_id=auth.uid() and idea_id='aaaa0002-0000-0000-0000-000000000002';
+insert into ideas(title,description,category,author_id)
+  values ('На удаление','описание','AI',auth.uid());
+do $$
+declare mine uuid; n int;
+begin
+  select id into mine from ideas_public where title='На удаление';
+  insert into votes(user_id,idea_id) values (auth.uid(), mine);
+  if not (select can_delete from ideas_public where id=mine) then
+    raise exception 'FAIL 23: собственный голос закрыл удаление'; end if;
+  perform public.delete_my_idea(mine);
+  select count(*) into n from ideas_public where id=mine;
+  if n <> 0 then raise exception 'FAIL 23: идея на месте'; end if;
+  if (select count(*) from votes where idea_id=mine) <> 0 then
+    raise exception 'FAIL 23: голос не ушёл каскадом'; end if;
+  raise notice 'OK  23 идея без чужих откликов удалена вместе со своим голосом';
+end $$;
+
+-- 24. чужой отклик закрывает удаление
+insert into ideas(title,description,category,author_id)
+  values ('С откликом','описание','AI',auth.uid());
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"22222222-2222-2222-2222-222222222222","email":"m.kovaleva@pimsolutions.ru"}', false);
+set role authenticated;
+insert into joins(user_id,idea_id)
+  select auth.uid(), id from ideas_public where title='С откликом';
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"11111111-1111-1111-1111-111111111111","email":"e.sokolov@pimsolutions.ru"}', false);
+set role authenticated;
+
+do $$
+declare mine uuid;
+begin
+  select id into mine from ideas_public where title='С откликом';
+  if (select can_delete from ideas_public where id=mine) then
+    raise exception 'FAIL 24: вью обещает удаление идеи с чужим откликом'; end if;
+  perform public.delete_my_idea(mine);
+  raise exception 'FAIL 24: удалил идею, на которую откликнулись';
+exception when others then
+  if sqlerrm <> 'IDEA_HAS_REACTIONS' then raise; end if;
+  raise notice 'OK  24 удаление идеи с чужим откликом отклонено: %', sqlerrm;
+end $$;
+
+-- 25. заблокированному правка и удаление недоступны
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"44444444-4444-4444-4444-444444444444","email":"d.volkov@pimpay.ru"}', false);
+set role authenticated;
+
+do $$
+declare alien uuid;
+begin
+  select id into alien from ideas_public where title='С откликом';
+  perform public.update_my_idea(alien,'Правка бана','описание','AI',null,false);
+  raise exception 'FAIL 25: заблокированный изменил идею';
+exception when others then
+  if sqlerrm <> 'FORBIDDEN' then raise; end if;
+  raise notice 'OK  25 правка от заблокированного отклонена: %', sqlerrm;
+end $$;
+
+-- 26. чужая анонимность и чужой author_id по-прежнему не утекают
+do $$
+declare r record;
+begin
+  select is_mine, is_anonymous, can_delete into r from ideas_public where title='Идея анонима';
+  if r.is_mine or r.is_anonymous or r.can_delete then
+    raise exception 'FAIL 26: вью отдала признаки чужой идеи: %', r; end if;
+  raise notice 'OK  26 у чужой идеи is_mine, is_anonymous и can_delete = false';
 end $$;
 
 reset role;
